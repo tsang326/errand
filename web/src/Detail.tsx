@@ -55,7 +55,7 @@ export function Detail({
                 the corner competing with Close for the title's width. */}
             {row.url && (
               <a className="ghost sheet-open" href={row.url} target="_blank" rel="noreferrer noopener">
-                Open the listing
+                Open on {row.retailer || 'the retailer'}
               </a>
             )}
           </div>
@@ -96,6 +96,10 @@ export function Detail({
           <div className="kv">
             <dt>Stock</dt>
             <dd style={{ margin: 0 }}>{row.inStock ? 'In stock' : 'Cannot be bought'}</dd>
+          </div>
+          <div className="kv">
+            <dt>Price and stock</dt>
+            <dd style={{ margin: 0 }}>as the product index last saw them</dd>
           </div>
           <div className="kv">
             <dt>Category</dt>
