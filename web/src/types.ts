@@ -14,9 +14,19 @@ export type Row = {
   commissionRate: number;
   attributes: Record<string, string[]>;
   keyFeatures: string[];
+  /** One mark per requirement, in the plan's order. Empty if never judged. */
+  marks: Mark[];
+  /** Derived from the marks on the server; shown, never recomputed here. */
   fit: number | null;
   why: string;
   misses: string[];
+};
+
+/** The agent's ruling on one of the shopper's requirements. */
+export type Mark = {
+  requirement: number;
+  holds: 'yes' | 'no' | 'unclear';
+  note: string;
 };
 
 export type Plan = {

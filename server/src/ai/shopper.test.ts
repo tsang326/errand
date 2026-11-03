@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { planSearch, rankProducts, parseVerdicts, rankingInput } from './shopper.js';
+import { planSearch, rankProducts, parseVerdicts, rankingInput, fitOf } from './shopper.js';
 import { costOf, record, resetMeter, meterState, budgetLeft, assertBudget } from './meter.js';
 import { fixtureSearch } from '../channel3/fixtures.js';
 
@@ -24,29 +24,67 @@ test('with no model, ranking returns nothing rather than inventing verdicts', as
 test('a verdict about a product that was never sent is dropped', () => {
   const text = JSON.stringify({
     verdicts: [
-      { product_id: products[0]!.id, fit: 80, why: 'ok', misses: [] },
-      { product_id: 'invented-by-the-model', fit: 99, why: 'perfect', misses: [] },
+      { product_id: products[0]!.id, why: 'ok', marks: [{ requirement: 0, holds: 'yes', note: 'a' }] },
+      { product_id: 'invented-by-the-model', why: 'perfect', marks: [] },
     ],
   });
-  const v = parseVerdicts(text, products);
+  const v = parseVerdicts(text, products, 1);
   assert.equal(v.length, 1);
   assert.equal(v[0]!.productId, products[0]!.id);
 });
 
-test('fit is clamped to 0-100 and a missing fit is not treated as a high score', () => {
+test('every requirement gets a mark, even the ones the model skipped', () => {
   const text = JSON.stringify({
     verdicts: [
-      { product_id: products[0]!.id, fit: 1000, why: '', misses: [] },
-      { product_id: products[1]!.id, why: 'no fit field', misses: [] },
+      {
+        product_id: products[0]!.id,
+        why: 'answered only the first',
+        marks: [{ requirement: 0, holds: 'yes', note: 'under $40' }],
+      },
     ],
   });
-  const v = parseVerdicts(text, products);
-  assert.equal(v[0]!.fit, 100);
-  assert.equal(v[1]!.fit, 0);
+  const v = parseVerdicts(text, products, 3);
+  assert.equal(v[0]!.marks.length, 3, 'the ledger keeps a column for every requirement');
+  assert.equal(v[0]!.marks[0]!.holds, 'yes');
+  // A skipped requirement is unanswered, which is not the same as failed.
+  assert.equal(v[0]!.marks[1]!.holds, 'unclear');
+  assert.equal(v[0]!.marks[2]!.holds, 'unclear');
+});
+
+test('a mark for a requirement that does not exist is discarded', () => {
+  const text = JSON.stringify({
+    verdicts: [
+      {
+        product_id: products[0]!.id,
+        why: '',
+        marks: [
+          { requirement: 7, holds: 'no', note: 'invented column' },
+          { requirement: 0, holds: 'no', note: 'over budget' },
+        ],
+      },
+    ],
+  });
+  const v = parseVerdicts(text, products, 2);
+  assert.equal(v[0]!.marks.length, 2);
+  assert.equal(v[0]!.marks[0]!.note, 'over budget');
+});
+
+test('fit is derived from the marks, so it can never disagree with them', () => {
+  const mark = (requirement: number, holds: 'yes' | 'no' | 'unclear') => ({
+    requirement,
+    holds,
+    note: '',
+  });
+  assert.equal(fitOf([]), null, 'no requirements means no score, not a zero');
+  assert.equal(fitOf([mark(0, 'yes'), mark(1, 'yes')]), 100);
+  assert.equal(fitOf([mark(0, 'no'), mark(1, 'no')]), 0);
+  // A silent listing is not a contradicted one: it counts half.
+  assert.equal(fitOf([mark(0, 'yes'), mark(1, 'unclear')]), 75);
+  assert.equal(fitOf([mark(0, 'yes'), mark(1, 'no')]), 50);
 });
 
 test('prose instead of JSON yields no verdicts, not a crash', () => {
-  assert.deepEqual(parseVerdicts('Sure! Here are my thoughts:', products), []);
+  assert.deepEqual(parseVerdicts('Sure! Here are my thoughts:', products, 2), []);
 });
 
 test('the ranking step is shown offers and attributes, never a buy link', () => {

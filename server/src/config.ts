@@ -38,10 +38,11 @@ export const config = {
     // 1-15 December on a public URL, so the thing to bound is what a stranger
     // can spend, and money is the one budget here that does not refill.
     spendBudgetUsd: Number(str('ERRAND_AI_SPEND_USD', '3.00')),
-    // How many products the ranking step is allowed to read in one call. The
-    // grid can hold more; the model does not need to see them all to explain
-    // the shortlist, and the prompt grows linearly with this.
-    rankLimit: Number(str('ERRAND_RANK_LIMIT', '12')),
+    // How many products the ranking step is allowed to read in one call.
+    // It matches CHANNEL3_LIMIT on purpose: a row the model never read shows
+    // an empty ledger, and the counts on screen then do not add up to the
+    // number of rows. Judging every row costs about $0.035 instead of $0.018.
+    rankLimit: Number(str('ERRAND_RANK_LIMIT', '24')),
   },
 } as const;
 

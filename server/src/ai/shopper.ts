@@ -13,15 +13,38 @@ export type Plan = {
   source: 'model' | 'passthrough';
 };
 
+/** The agent's ruling on one requirement for one product. */
+export type Mark = {
+  /** Index into the plan's requirements, so the column is never guessed. */
+  requirement: number;
+  holds: 'yes' | 'no' | 'unclear';
+  /** What the listing said, in the shopper's terms. Shown in the cell's tooltip. */
+  note: string;
+};
+
 export type Verdict = {
   productId: string;
-  /** 0-100. The agent's own confidence that this row answers the request. */
-  fit: number;
+  /** One mark per requirement, in the plan's order. */
+  marks: Mark[];
   /** One sentence, in the shopper's own terms, on why this row is here. */
   why: string;
-  /** Requirements this row fails or cannot be shown to meet. Often empty. */
-  misses: string[];
 };
+
+/**
+ * A single score is derived from the marks, never asked of the model
+ * separately: a fact shown twice is one variable, so a row can never show
+ * "92" beside three failed requirements. "Unclear" counts half because a
+ * listing that is silent is not the same as one that contradicts you.
+ */
+export function fitOf(marks: readonly Mark[]): number | null {
+  if (marks.length === 0) return null;
+  const held = marks.reduce((n, m) => n + (m.holds === 'yes' ? 1 : m.holds === 'unclear' ? 0.5 : 0), 0);
+  return Math.round((held / marks.length) * 100);
+}
+
+/** The notes of the requirements this row actually fails. */
+export const missesOf = (marks: readonly Mark[]): string[] =>
+  marks.filter((m) => m.holds === 'no').map((m) => m.note).filter((n) => n.length > 0);
 
 export type Ranking = {
   verdicts: Verdict[];
@@ -40,17 +63,22 @@ Reply with JSON only: {"query": string, "max_price": number|null, "requirements"
   string, in their own words. A delivery date or a recipient's age is a
   requirement even when a product search cannot filter on it.`;
 
-const SYSTEM_RANK = `You are explaining a shortlist to the person who asked for it.
+const SYSTEM_RANK = `You judge each product against the shopper's own requirements, one at a time.
 
-For each product you are given, reply with one entry:
-{"product_id": string, "fit": 0-100, "why": string, "misses": string[]}
+The requirements arrive as a numbered list. For every product reply with one entry:
+{"product_id": string, "why": string,
+ "marks": [{"requirement": <the number>, "holds": "yes"|"no"|"unclear", "note": string}]}
 
-- "why" is one sentence naming the concrete reason this product answers the
-  request. No sales language. If the only reason is that it matched the words,
-  say that.
-- "misses" lists the stated requirements this product fails, or that the data
-  cannot show either way. An empty list is a claim that every requirement is
-  met, so do not leave it empty out of politeness.
+- Give one mark for EVERY requirement, in the order they were given. Never skip
+  one and never invent a number that was not in the list.
+- "yes" means the fields given show the requirement is met. "no" means they show
+  it is not. "unclear" means the listing is silent: use it rather than guessing,
+  and do not use it when the fields do answer the question.
+- "note" is a short phrase in the shopper's terms saying what the listing said:
+  "metal and glass, no plastic", "$53.99, under the $60 ceiling", "colour
+  temperature not stated". Under 90 characters. Never a sales line.
+- "why" is one sentence naming the concrete reason this product is on the list.
+  If the only reason is that it matched the words, say that.
 - Judge only from the fields given. Never invent a feature, a delivery date or a
   review.
 
@@ -158,18 +186,27 @@ export async function rankProducts(
     SYSTEM_RANK,
     JSON.stringify({
       request: sentence,
-      requirements: plan.requirements,
+      // Numbered, because the marks come back keyed by this number.
+      requirements: plan.requirements.map((text, i) => ({ number: i, text })),
       products: rankingInput(subject),
     }),
   );
-  return { verdicts: parseVerdicts(text, subject), source: 'model', costUsd: cost };
+  return {
+    verdicts: parseVerdicts(text, subject, plan.requirements.length),
+    source: 'model',
+    costUsd: cost,
+  };
 }
 
 /**
  * Keeps only verdicts about products that were actually sent. A model that
  * invents a product id must not be able to add a row to the grid.
  */
-export function parseVerdicts(text: string, products: readonly Product[]): Verdict[] {
+export function parseVerdicts(
+  text: string,
+  products: readonly Product[],
+  requirementCount: number,
+): Verdict[] {
   const known = new Set(products.map((p) => p.id));
   let rows: unknown[] = [];
   try {
@@ -183,14 +220,39 @@ export function parseVerdicts(text: string, products: readonly Product[]): Verdi
     const v = r as Record<string, unknown>;
     const id = String(v.product_id ?? '');
     if (!known.has(id)) return [];
-    const fit = Number(v.fit);
     return [
       {
         productId: id,
-        fit: Number.isFinite(fit) ? Math.min(100, Math.max(0, Math.round(fit))) : 0,
+        marks: parseMarks(v.marks, requirementCount),
         why: typeof v.why === 'string' ? v.why : '',
-        misses: Array.isArray(v.misses) ? v.misses.map(String).filter((m) => m.length > 0) : [],
       },
     ];
   });
+}
+
+/**
+ * One mark per requirement, in requirement order, whatever the model returned.
+ * A requirement the model skipped comes back as "unclear" rather than being
+ * dropped: a missing column would silently shorten the ledger, and a buyer
+ * reading four columns must get four answers.
+ */
+function parseMarks(raw: unknown, count: number): Mark[] {
+  const byIndex = new Map<number, Mark>();
+  if (Array.isArray(raw)) {
+    for (const entry of raw) {
+      if (typeof entry !== 'object' || entry === null) continue;
+      const m = entry as Record<string, unknown>;
+      const i = Number(m.requirement);
+      if (!Number.isInteger(i) || i < 0 || i >= count || byIndex.has(i)) continue;
+      const holds = m.holds === 'yes' || m.holds === 'no' ? m.holds : 'unclear';
+      byIndex.set(i, {
+        requirement: i,
+        holds,
+        note: typeof m.note === 'string' ? m.note.slice(0, 120) : '',
+      });
+    }
+  }
+  return Array.from({ length: count }, (_, i) =>
+    byIndex.get(i) ?? { requirement: i, holds: 'unclear' as const, note: 'the agent did not say' },
+  );
 }
