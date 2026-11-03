@@ -1,0 +1,196 @@
+import express, { type Request, type Response } from 'express';
+import cors from 'cors';
+import { randomUUID } from 'node:crypto';
+import { z } from 'zod';
+import { config, channel3Live, paypalConfigured } from '../config.js';
+import { searchProducts } from '../channel3/client.js';
+import { cheapestOffer, bestCommission, type Product } from '../channel3/types.js';
+import { planSearch, rankProducts, type Plan, type Verdict } from '../ai/shopper.js';
+import { meterState } from '../ai/meter.js';
+import { createOrder, captureOrder, type CartLine } from '../paypal/orders.js';
+
+/** One row as the grid consumes it: the product, its best offer, the agent's verdict. */
+export type Row = {
+  productId: string;
+  title: string;
+  brand: string;
+  imageUrl: string;
+  category: string;
+  categoryPath: string[];
+  retailer: string;
+  price: number | null;
+  compareAtPrice: number | null;
+  currency: string;
+  inStock: boolean;
+  offerCount: number;
+  commissionRate: number;
+  attributes: Record<string, string[]>;
+  keyFeatures: string[];
+  /** Null when the ranking step did not run or did not cover this product. */
+  fit: number | null;
+  why: string;
+  misses: string[];
+};
+
+export function toRows(products: readonly Product[], verdicts: readonly Verdict[]): Row[] {
+  const byId = new Map(verdicts.map((v) => [v.productId, v]));
+  return products.map((p) => {
+    const offer = cheapestOffer(p);
+    const v = byId.get(p.id);
+    return {
+      productId: p.id,
+      title: p.title,
+      brand: p.brand,
+      imageUrl: p.imageUrl,
+      category: p.category,
+      categoryPath: p.categoryPath,
+      retailer: offer?.domain ?? '',
+      price: offer?.price ?? null,
+      compareAtPrice: offer?.compareAtPrice ?? null,
+      currency: offer?.currency ?? 'USD',
+      inStock: offer?.inStock ?? false,
+      offerCount: p.offers.length,
+      commissionRate: bestCommission(p),
+      attributes: p.attributes,
+      keyFeatures: p.keyFeatures,
+      // A row the model never judged shows an empty cell, not a zero: zero
+      // would read as "the agent looked and rejected it".
+      fit: v ? v.fit : null,
+      why: v?.why ?? '',
+      misses: v?.misses ?? [],
+    };
+  });
+}
+
+type Errand = {
+  id: string;
+  sentence: string;
+  plan: Plan;
+  origin: 'live' | 'fixture';
+  note?: string;
+  rows: Row[];
+  createdAt: string;
+};
+
+/**
+ * Errands live in memory only. The free Render plan has no disk, so a database
+ * here would be rebuilt on every cold start anyway; saying so beats shipping a
+ * file that silently vanishes.
+ */
+const errands = new Map<string, Errand>();
+
+const errandBody = z.object({ sentence: z.string().min(3).max(500) });
+
+const cartLine = z.object({
+  productId: z.string().min(1),
+  title: z.string().min(1),
+  merchant: z.string(),
+  unitPrice: z.number().positive(),
+  quantity: z.number().int().positive().max(20),
+  currency: z.string().length(3),
+});
+
+const orderBody = z.object({
+  lines: z.array(cartLine).min(1).max(10),
+  returnUrl: z.string().url().optional(),
+  cancelUrl: z.string().url().optional(),
+});
+
+const fail = (res: Response, status: number, error: string, extra: object = {}): void => {
+  res.status(status).json({ error, ...extra });
+};
+
+export function buildApp() {
+  const app = express();
+  app.use(cors());
+  app.use(express.json({ limit: '256kb' }));
+
+  app.get('/api/health', (_req: Request, res: Response) => {
+    res.json({
+      ok: true,
+      products: channel3Live() ? 'channel3-live' : 'fixtures',
+      searchMode: config.channel3.mode,
+      paypal: paypalConfigured() ? (config.paypal.sandbox ? 'sandbox' : 'live') : 'unconfigured',
+      model: config.openai.apiKey ? config.openai.model : 'none',
+      ai: meterState(),
+      errandsHeld: errands.size,
+    });
+  });
+
+  app.post('/api/errand', async (req: Request, res: Response) => {
+    const parsed = errandBody.safeParse(req.body);
+    if (!parsed.success) return fail(res, 400, 'sentence must be 3-500 characters');
+    const { sentence } = parsed.data;
+
+    try {
+      const plan = await planSearch(sentence);
+      const search = await searchProducts({
+        query: plan.query,
+        ...(plan.maxPrice !== undefined ? { maxPrice: plan.maxPrice } : {}),
+      });
+      const ranking = await rankProducts(sentence, plan, search.products);
+
+      const errand: Errand = {
+        id: randomUUID(),
+        sentence,
+        plan,
+        origin: search.origin,
+        ...(search.note ? { note: search.note } : {}),
+        rows: toRows(search.products, ranking.verdicts),
+        createdAt: new Date().toISOString(),
+      };
+      errands.set(errand.id, errand);
+
+      return res.json({
+        ...errand,
+        ranking: { source: ranking.source, costUsd: Number(ranking.costUsd.toFixed(4)) },
+      });
+    } catch (err) {
+      const e = err as Error & { code?: string; status?: number };
+      if (e.code === 'ai_budget_spent') return fail(res, 429, e.message, { code: e.code });
+      return fail(res, 502, e.message.slice(0, 300));
+    }
+  });
+
+  app.get('/api/errand/:id', (req: Request, res: Response) => {
+    const errand = errands.get(String(req.params.id ?? ''));
+    if (!errand) return fail(res, 404, 'no such errand');
+    return res.json(errand);
+  });
+
+  app.post('/api/order', async (req: Request, res: Response) => {
+    const parsed = orderBody.safeParse(req.body);
+    if (!parsed.success) {
+      return fail(res, 400, 'bad cart', { detail: parsed.error.issues.slice(0, 4) });
+    }
+    if (!paypalConfigured()) return fail(res, 503, 'PayPal is not configured on this deployment');
+
+    const { lines, returnUrl, cancelUrl } = parsed.data;
+    try {
+      const order = await createOrder(
+        lines as CartLine[],
+        returnUrl ?? `${config.publicUrl}/paid`,
+        cancelUrl ?? `${config.publicUrl}/cancelled`,
+      );
+      return res.json(order);
+    } catch (err) {
+      return fail(res, 502, (err as Error).message.slice(0, 400));
+    }
+  });
+
+  app.post('/api/order/:id/capture', async (req: Request, res: Response) => {
+    if (!paypalConfigured()) return fail(res, 503, 'PayPal is not configured on this deployment');
+    const orderId = String(req.params.id ?? '');
+    // The idempotency key is derived from the order, not minted per request, so
+    // a double-clicked capture replays the first answer instead of charging
+    // twice.
+    try {
+      const captured = await captureOrder(orderId, `capture-${orderId}`);
+      return res.json(captured);
+    } catch (err) {
+      return fail(res, 502, (err as Error).message.slice(0, 400));
+    }
+  });
+
+  return app;
+}

@@ -4,6 +4,8 @@ const str = (name: string, fallback = ''): string => process.env[name]?.trim() |
 
 export const config = {
   port: Number(str('PORT', '8787')),
+  /** Where this deployment is reachable; PayPal redirects the shopper back here. */
+  publicUrl: str('ERRAND_PUBLIC_URL', 'http://localhost:5173'),
   db: str('ERRAND_DB', './errand.db'),
 
   // Channel3 supplies the products. Without a key the server answers from the
@@ -29,6 +31,17 @@ export const config = {
   openai: {
     apiKey: str('OPENAI_API_KEY'),
     model: str('ERRAND_MODEL', 'gpt-4.1'),
+  },
+
+  ai: {
+    // A hard ceiling on what the model can cost this process. Judging runs
+    // 1-15 December on a public URL, so the thing to bound is what a stranger
+    // can spend, and money is the one budget here that does not refill.
+    spendBudgetUsd: Number(str('ERRAND_AI_SPEND_USD', '3.00')),
+    // How many products the ranking step is allowed to read in one call. The
+    // grid can hold more; the model does not need to see them all to explain
+    // the shortlist, and the prompt grows linearly with this.
+    rankLimit: Number(str('ERRAND_RANK_LIMIT', '12')),
   },
 } as const;
 
