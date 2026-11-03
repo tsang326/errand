@@ -230,8 +230,10 @@ export default function App() {
                   <b>
                     {counts.clears} of {counts.all}
                   </b>{' '}
-                  hold all {requirements.length} of your requirements. The rest each miss something,
-                  and the ledger says which.
+                  {requirements.length === 1
+                    ? 'hold the one requirement the agent found in your sentence.'
+                    : `hold all ${requirements.length} of your requirements.`}{' '}
+                  The rest each miss something, and the ledger says which.
                 </>
               ) : (
                 <>
