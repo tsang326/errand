@@ -1,6 +1,7 @@
 import { config, channel3Live } from '../config.js';
 import type { Offer, Product, SearchResult } from './types.js';
 import { fixtureSearch } from './fixtures.js';
+import { DEADLINE_MS, fetchWithDeadline } from '../net.js';
 
 type SearchOptions = { query: string; maxPrice?: number; limit?: number };
 
@@ -29,14 +30,19 @@ export async function searchProducts(opts: SearchOptions): Promise<SearchResult>
     body.filters = { price: { max_price: opts.maxPrice } };
   }
 
-  const res = await fetch(`${config.channel3.baseUrl}/search`, {
-    method: 'POST',
-    headers: {
-      'x-api-key': config.channel3.apiKey,
-      'content-type': 'application/json',
+  const res = await fetchWithDeadline(
+    `${config.channel3.baseUrl}/search`,
+    {
+      method: 'POST',
+      headers: {
+        'x-api-key': config.channel3.apiKey,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  });
+    DEADLINE_MS.channel3,
+    'Channel3',
+  );
 
   if (!res.ok) {
     const detail = await res.text().catch(() => '');

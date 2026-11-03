@@ -32,6 +32,12 @@ export default function App() {
   const [errand, setErrand] = useState<Errand | undefined>();
   const [health, setHealth] = useState<Health | undefined>();
   const [busy, setBusy] = useState(false);
+  /**
+   * A ten-second wait with a dead button reads as a broken page. Counting the
+   * seconds out loud — and naming the sleeping instance once the wait passes
+   * what a warm run takes — is the difference between waiting and giving up.
+   */
+  const [waited, setWaited] = useState(0);
   const [error, setError] = useState('');
   const [quick, setQuick] = useState('');
   const [band, setBand] = useState<Band>('all');
@@ -86,6 +92,13 @@ export default function App() {
     },
     [band],
   );
+
+  useEffect(() => {
+    if (!busy) return setWaited(0);
+    setWaited(0);
+    const t = setInterval(() => setWaited((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [busy]);
 
   useEffect(() => {
     api.current?.onFilterChanged();
@@ -164,9 +177,15 @@ export default function App() {
           aria-label="What do you need?"
         />
         <button className="primary" onClick={send} disabled={busy || sentence.trim().length < 3}>
-          {busy ? 'on it…' : 'Send the agent'}
+          {busy ? `on it… ${waited}s` : 'Send the agent'}
         </button>
       </section>
+      {busy && waited > 12 && (
+        <p className="muted waking">
+          Still going. This demo runs on a free instance that sleeps when idle, so the first
+          search after a quiet spell spends most of its time waking up.
+        </p>
+      )}
       <div className="examples">
         {EXAMPLES.map((e) => (
           <button key={e} className="link" onClick={() => setSentence(e)}>

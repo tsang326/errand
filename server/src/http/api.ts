@@ -151,7 +151,9 @@ export function buildApp() {
     } catch (err) {
       const e = err as Error & { code?: string; status?: number };
       if (e.code === 'ai_budget_spent') return fail(res, 429, e.message, { code: e.code });
-      return fail(res, 502, e.message.slice(0, 300));
+      // An upstream deadline carries its own status (504/502); keeping it tells
+      // the page the difference between "too slow" and "wrong answer".
+      return fail(res, e.status ?? 502, e.message.slice(0, 300), e.code ? { code: e.code } : {});
     }
   });
 

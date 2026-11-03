@@ -1,6 +1,7 @@
 import { config } from '../config.js';
 import { assertBudget, record, type Usage } from './meter.js';
 import { cheapestOffer, type Product } from '../channel3/types.js';
+import { DEADLINE_MS, fetchWithDeadline } from '../net.js';
 
 export type Plan = {
   /** What gets sent to Channel3 as the search query. */
@@ -62,7 +63,9 @@ type ChatResponse = {
 
 async function chat(system: string, user: string): Promise<{ text: string; cost: number }> {
   assertBudget();
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await fetchWithDeadline(
+    'https://api.openai.com/v1/chat/completions',
+    {
     method: 'POST',
     headers: {
       authorization: `Bearer ${config.openai.apiKey}`,
@@ -77,7 +80,10 @@ async function chat(system: string, user: string): Promise<{ text: string; cost:
       response_format: { type: 'json_object' },
       temperature: 0.2,
     }),
-  });
+    },
+    DEADLINE_MS.openai,
+    'OpenAI',
+  );
   if (!res.ok) {
     throw new Error(`openai ${res.status}: ${(await res.text()).slice(0, 300)}`);
   }

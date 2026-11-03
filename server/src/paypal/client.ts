@@ -1,4 +1,5 @@
 import { config, paypalConfigured } from '../config.js';
+import { DEADLINE_MS, fetchWithDeadline } from '../net.js';
 
 const BASE = () =>
   config.paypal.sandbox
@@ -25,14 +26,19 @@ async function accessToken(): Promise<string> {
     `${config.paypal.clientId}:${config.paypal.clientSecret}`,
   ).toString('base64');
 
-  const res = await fetch(`${BASE()}/v1/oauth2/token`, {
-    method: 'POST',
-    headers: {
-      authorization: `Basic ${basic}`,
-      'content-type': 'application/x-www-form-urlencoded',
+  const res = await fetchWithDeadline(
+    `${BASE()}/v1/oauth2/token`,
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Basic ${basic}`,
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials',
     },
-    body: 'grant_type=client_credentials',
-  });
+    DEADLINE_MS.paypal,
+    'PayPal',
+  );
   if (!res.ok) {
     throw new Error(`paypal token ${res.status}: ${(await res.text()).slice(0, 200)}`);
   }
@@ -60,15 +66,20 @@ export async function paypalRequest<T>(
   requestId?: string,
 ): Promise<T> {
   const token = await accessToken();
-  const res = await fetch(`${BASE()}${path}`, {
-    method,
-    headers: {
-      authorization: `Bearer ${token}`,
-      'content-type': 'application/json',
-      ...(requestId ? { 'paypal-request-id': requestId } : {}),
+  const res = await fetchWithDeadline(
+    `${BASE()}${path}`,
+    {
+      method,
+      headers: {
+        authorization: `Bearer ${token}`,
+        'content-type': 'application/json',
+        ...(requestId ? { 'paypal-request-id': requestId } : {}),
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
+    DEADLINE_MS.paypal,
+    'PayPal',
+  );
 
   const text = await res.text();
   const parsed: unknown = text.length > 0 ? JSON.parse(text) : {};

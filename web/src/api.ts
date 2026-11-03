@@ -1,11 +1,31 @@
 import type { CreatedOrder, Errand, Health, Row } from './types';
 
+/**
+ * The deployment sleeps after 15 minutes idle and takes about a minute to come
+ * back, so the first call of a visit is genuinely slow. It is still bounded:
+ * a request with no deadline leaves the button on "on it…" for ever if the
+ * instance is restarted mid-flight, which is the one failure nobody can act on.
+ */
+const DEADLINE_MS = 90_000;
+
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(path, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(DEADLINE_MS),
+    });
+  } catch (err) {
+    const e = err as Error;
+    if (e.name === 'TimeoutError' || e.name === 'AbortError') {
+      throw new Error(
+        'the agent did not answer within 90 seconds — this demo sleeps when idle, so try once more',
+      );
+    }
+    throw new Error(`could not reach the agent: ${e.message}`);
+  }
   const json = (await res.json()) as T & { error?: string };
   if (!res.ok) throw new Error(json.error ?? `${path} failed (${res.status})`);
   return json;

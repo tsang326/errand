@@ -254,3 +254,5 @@ code { background: #0b0e11; border: 1px solid var(--line); border-radius: 6px; p
 .features { margin: 0; padding-left: 18px; line-height: 1.55; font-size: 14px; }
 .features li { margin-bottom: 6px; }
 .detail-foot { color: var(--muted); font-size: 13px; margin-top: 24px; }
+
+.waking { margin: 8px 0 0; font-size: 13px; }
