@@ -62,6 +62,11 @@ export const createOrder = (rows: { row: Row; quantity: number }[]): Promise<Cre
  */
 export const getErrand = async (id: string): Promise<Errand> => {
   const res = await fetch(`/api/errand/${encodeURIComponent(id)}`);
-  if (!res.ok) throw new Error(`that errand is no longer held (${res.status})`);
+  // Errands live in the server's memory, so a restart (or the free instance
+  // going to sleep) loses the link. Say that, and say what to do about it.
+  if (!res.ok)
+    throw new Error(
+      `That errand is gone (${res.status}). Results are kept in memory, so a restart clears them. Send the sentence again to get a fresh shortlist.`,
+    );
   return (await res.json()) as Errand;
 };

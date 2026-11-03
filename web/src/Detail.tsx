@@ -1,68 +1,107 @@
+import { useEffect } from 'react';
+import { MarkDot, money } from './grid';
 import type { Row } from './types';
 
+const WORD = { yes: 'Holds', no: 'Fails', unclear: 'Not stated' } as const;
+
 /**
- * What the agent judged the row on. A verdict is only worth reading next to the
- * evidence behind it, and the evidence here is Channel3's own extracted
- * attributes, not prose the model wrote.
+ * One product, with the agent's ruling on each requirement written out. The
+ * grid shows the marks; this shows what the listing actually said, which is
+ * the only way to disagree with the agent.
  */
-export function Detail({ row, onClose }: { row: Row; onClose: () => void }) {
-  const attrs = Object.entries(row.attributes);
+export function Detail({
+  row,
+  requirements,
+  onClose,
+}: {
+  row: Row;
+  requirements: readonly string[];
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
-    <aside className="detail" role="dialog" aria-label={row.title}>
-      <header>
-        <h2>{row.title}</h2>
-        <button className="link" onClick={onClose} aria-label="close">
-          close
+    <div className="sheet-back" onClick={onClose} role="presentation">
+      <aside
+        className="sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label={row.title}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button className="ghost" onClick={onClose} style={{ float: 'right' }}>
+          Close
         </button>
-      </header>
+        <h3>{row.title}</h3>
+        <p className="cartnote" style={{ margin: 0 }}>
+          {row.brand ? `${row.brand} · ` : ''}
+          {row.retailer || 'no retailer listed'}
+        </p>
 
-      <p className="detail-why">
-        {row.fit === null ? 'The agent did not judge this row.' : row.why}
-      </p>
+        {row.why && <p style={{ marginTop: 14 }}>{row.why}</p>}
 
-      {row.misses.length > 0 && (
-        <div className="chips">
-          {row.misses.map((m) => (
-            <span className="chip chip-bad" key={m}>
-              {m}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {row.categoryPath.length > 0 && (
-        <p className="detail-path">{row.categoryPath.join(' › ')}</p>
-      )}
-
-      {attrs.length > 0 && (
-        <>
-          <h3>What the retailer states</h3>
-          <dl className="attrs">
-            {attrs.map(([k, v]) => (
-              <div key={k}>
-                <dt>{k.replace(/-/g, ' ')}</dt>
-                <dd>{v.join(', ')}</dd>
-              </div>
-            ))}
-          </dl>
-        </>
-      )}
-
-      {row.keyFeatures.length > 0 && (
-        <>
-          <h3>Listed features</h3>
-          <ul className="features">
-            {row.keyFeatures.map((f) => (
-              <li key={f}>{f}</li>
-            ))}
+        {requirements.length > 0 && (
+          <ul className="marklist">
+            {requirements.map((text, i) => {
+              const m = row.marks[i];
+              return (
+                <li key={text}>
+                  <MarkDot holds={m?.holds ?? 'unclear'} />
+                  <span>
+                    <span className="req">{text}</span>
+                    <span className="note">
+                      {WORD[m?.holds ?? 'unclear']}
+                      {m?.note ? `: ${m.note}` : ''}
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
           </ul>
-        </>
-      )}
+        )}
 
-      <p className="detail-foot">
-        {row.offerCount} retailer{row.offerCount === 1 ? '' : 's'} carry this
-        {row.commissionRate > 0 && ` · best commission ${(row.commissionRate * 100).toFixed(1)}%`}
-      </p>
-    </aside>
+        <dl>
+          <div className="kv">
+            <dt>Price</dt>
+            <dd className="num" style={{ margin: 0 }}>
+              {row.price === null ? '—' : money(row.price, row.currency)}
+            </dd>
+          </div>
+          <div className="kv">
+            <dt>Offers</dt>
+            <dd className="num" style={{ margin: 0 }}>
+              {row.offerCount}
+            </dd>
+          </div>
+          <div className="kv">
+            <dt>Stock</dt>
+            <dd style={{ margin: 0 }}>{row.inStock ? 'In stock' : 'Cannot be bought'}</dd>
+          </div>
+          <div className="kv">
+            <dt>Category</dt>
+            <dd style={{ margin: 0 }}>{row.categoryPath.join(' › ') || row.category || '—'}</dd>
+          </div>
+        </dl>
+
+        {row.keyFeatures.length > 0 && (
+          <>
+            <h4 style={{ fontSize: 14, fontWeight: 500, margin: '16px 0 6px' }}>
+              What the listing says
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--muted)' }}>
+              {row.keyFeatures.slice(0, 6).map((f) => (
+                <li key={f} style={{ marginBottom: 4 }}>
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </aside>
+    </div>
   );
 }

@@ -8,7 +8,15 @@ import { z } from 'zod';
 import { config, channel3Live, paypalConfigured } from '../config.js';
 import { searchProducts } from '../channel3/client.js';
 import { cheapestOffer, bestCommission, type Product } from '../channel3/types.js';
-import { planSearch, rankProducts, type Plan, type Verdict } from '../ai/shopper.js';
+import {
+  planSearch,
+  rankProducts,
+  fitOf,
+  missesOf,
+  type Plan,
+  type Verdict,
+  type Mark,
+} from '../ai/shopper.js';
 import { meterState } from '../ai/meter.js';
 import { createOrder, captureOrder, type CartLine } from '../paypal/orders.js';
 
@@ -29,9 +37,12 @@ export type Row = {
   commissionRate: number;
   attributes: Record<string, string[]>;
   keyFeatures: string[];
-  /** Null when the ranking step did not run or did not cover this product. */
+  /** One mark per requirement, in the plan's order; empty if the agent never judged this row. */
+  marks: Mark[];
+  /** Derived from the marks, never scored separately. Null when there are none. */
   fit: number | null;
   why: string;
+  /** The notes of the requirements this row fails. Derived from the marks. */
   misses: string[];
 };
 
@@ -58,9 +69,10 @@ export function toRows(products: readonly Product[], verdicts: readonly Verdict[
       keyFeatures: p.keyFeatures,
       // A row the model never judged shows an empty cell, not a zero: zero
       // would read as "the agent looked and rejected it".
-      fit: v ? v.fit : null,
+      marks: v?.marks ?? [],
+      fit: v ? fitOf(v.marks) : null,
       why: v?.why ?? '',
-      misses: v?.misses ?? [],
+      misses: v ? missesOf(v.marks) : [],
     };
   });
 }

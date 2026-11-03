@@ -1,167 +1,142 @@
 import type { ColDef, ICellRendererParams, ValueGetterParams } from 'ag-grid-community';
-import type { Row } from './types';
+import type { Mark, Row } from './types';
 
-const money = (value: number | null, currency: string): string =>
-  value === null ? '' : new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(value);
+/** Money arrives in whole currency units; one formatter, used everywhere. */
+export const money = (value: number, currency: string): string =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency || 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
 
 /**
- * The agent's confidence, drawn rather than printed: a judged row reads at a
- * glance, and a row the agent never judged shows an em dash, because 0 would
- * claim the agent looked at it and said no.
+ * The three marks are shapes first and colour second, so the ledger still
+ * reads when the colour does not: filled holds, hollow is silence, barred
+ * fails. The one hue on the screen sits here, on the agent's ruling, which is
+ * what the screen exists to show.
  */
-function FitCell({ data }: ICellRendererParams<Row>) {
-  if (!data) return null;
-  if (data.fit === null) return <span className="muted">—</span>;
-  const tone = data.fit >= 70 ? 'good' : data.fit >= 40 ? 'mixed' : 'bad';
-  return (
-    <div className="fit">
-      <div className={`fit-bar fit-${tone}`} style={{ width: `${data.fit}%` }} />
-      <span className="fit-num">{data.fit}</span>
-    </div>
-  );
+export function MarkDot({ holds }: { holds: Mark['holds'] }) {
+  return <span className={`mk mk-${holds}`} />;
 }
+
+const MARK_WORD: Record<Mark['holds'], string> = {
+  yes: 'holds',
+  no: 'fails',
+  unclear: 'the listing does not say',
+};
 
 function ProductCell({ data }: ICellRendererParams<Row>) {
   if (!data) return null;
   return (
     <div className="product">
       {data.imageUrl ? (
-        <img src={data.imageUrl} alt={data.title} loading="lazy" />
+        <img src={data.imageUrl} alt="" loading="lazy" />
       ) : (
-        <div className="noimg" aria-hidden="true" />
+        <span className="noimg" aria-hidden="true" />
       )}
-      <div className="product-text">
-        <div className="product-title">{data.title}</div>
-        <div className="product-brand">{data.brand || 'no brand given'}</div>
-      </div>
+      <span className="ptitle">
+        <span className="t">{data.title}</span>
+        <span className="b">
+          {data.brand ? `${data.brand} · ` : ''}
+          {data.retailer || 'no retailer listed'}
+          {!data.inStock && <span className="pill pill-out">cannot be bought</span>}
+        </span>
+      </span>
     </div>
   );
 }
 
 function PriceCell({ data }: ICellRendererParams<Row>) {
   if (!data) return null;
+  // A missing price is a grey dash; a real price is never dressed up.
+  if (data.price === null) return <span className="dash">—</span>;
   return (
-    <div className="price">
-      <span>{money(data.price, data.currency)}</span>
-      {data.compareAtPrice !== null && (
-        <s className="was">{money(data.compareAtPrice, data.currency)}</s>
+    <span className="price">
+      {money(data.price, data.currency)}
+      {data.compareAtPrice !== null && data.compareAtPrice > data.price && (
+        <span className="was">{money(data.compareAtPrice, data.currency)}</span>
       )}
-    </div>
-  );
-}
-
-/** What the agent could not show. An empty cell here is a positive claim. */
-function MissesCell({ data }: ICellRendererParams<Row>) {
-  if (!data) return null;
-  if (data.misses.length === 0) return <span className="muted">none</span>;
-  return (
-    <div className="chips">
-      {data.misses.map((m) => (
-        <span className="chip chip-bad" key={m} title={m}>
-          {m}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function StockCell({ data }: ICellRendererParams<Row>) {
-  if (!data) return null;
-  return (
-    <span className={data.inStock ? 'pill pill-in' : 'pill pill-out'}>
-      {data.inStock ? 'in stock' : 'not buyable'}
     </span>
   );
 }
 
-export const columns: ColDef<Row>[] = [
-  {
-    headerName: 'Fit',
-    field: 'fit',
-    width: 100,
-    cellRenderer: FitCell,
-    filter: 'agNumberColumnFilter',
-    sort: 'desc',
-    comparator: (a, b) => (a ?? -1) - (b ?? -1),
-    headerTooltip: "The agent's own confidence that this row answers the request",
-  },
-  {
-    headerName: 'Why the agent kept it',
-    field: 'why',
-    flex: 2,
-    minWidth: 260,
-    wrapText: true,
-    autoHeight: true,
-    filter: 'agTextColumnFilter',
-    cellClass: 'why-cell',
-  },
-  {
-    headerName: 'Misses',
-    field: 'misses',
-    flex: 1,
-    minWidth: 150,
-    // Chips wrap instead of ending in an ellipsis: a half-shown miss
-    // ("light temperatur…") is the one thing the shopper must be able to read.
-    wrapText: true,
-    autoHeight: true,
-    cellRenderer: MissesCell,
-    filter: 'agTextColumnFilter',
-    valueGetter: (p: ValueGetterParams<Row>) => p.data?.misses.join(', ') ?? '',
-  },
-  {
-    headerName: 'Product',
-    field: 'title',
-    flex: 2,
-    minWidth: 280,
-    cellRenderer: ProductCell,
-    filter: 'agTextColumnFilter',
-  },
-  {
-    headerName: 'Retailer',
-    field: 'retailer',
-    width: 140,
-    filter: 'agTextColumnFilter',
-    headerTooltip: 'Channel3 gives the retailer as a domain; there is no display name',
-  },
-  {
-    headerName: 'Price',
-    field: 'price',
-    width: 120,
-    cellRenderer: PriceCell,
-    filter: 'agNumberColumnFilter',
-    type: 'numericColumn',
-  },
-  { headerName: 'Stock', field: 'inStock', width: 110, cellRenderer: StockCell },
-  {
-    headerName: 'Offers',
-    field: 'offerCount',
-    width: 85,
-    type: 'numericColumn',
-    filter: 'agNumberColumnFilter',
-    headerTooltip: 'How many retailers carry this product',
-  },
-  {
-    headerName: 'Category',
-    field: 'category',
-    width: 150,
-    filter: 'agTextColumnFilter',
-    tooltipValueGetter: (p) => p.data?.categoryPath.join(' > ') ?? '',
-  },
-  {
-    headerName: 'Pays',
-    field: 'commissionRate',
-    width: 85,
-    type: 'numericColumn',
-    valueFormatter: (p) => (p.value ? `${(Number(p.value) * 100).toFixed(1)}%` : ''),
-    headerTooltip: 'Commission Channel3 reports on the best offer',
-  },
-];
+/**
+ * One column per requirement the agent pulled out of the sentence. These are
+ * the buyer's own words, which is the one thing a retailer's own filters can
+ * never be.
+ */
+export function requirementColumns(requirements: readonly string[]): ColDef<Row>[] {
+  return requirements.map((text, i) => ({
+    headerName: text,
+    headerTooltip: text,
+    colId: `req-${i}`,
+    width: Math.min(170, Math.max(110, text.length * 6)),
+    // The buyer's own words are the header; truncating them to "will not glare
+    // on a seco…" throws away the one thing this column is for.
+    wrapHeaderText: true,
+    autoHeaderHeight: true,
+    sortable: true,
+    // Sorted so the rows that fail this requirement gather at one end.
+    valueGetter: (p: ValueGetterParams<Row>) => {
+      const m = p.data?.marks[i];
+      return m ? (m.holds === 'yes' ? 2 : m.holds === 'unclear' ? 1 : 0) : -1;
+    },
+    tooltipValueGetter: (p) => {
+      const m = (p.data as Row | undefined)?.marks[i];
+      if (!m) return 'the agent did not judge this row';
+      return `${MARK_WORD[m.holds]}${m.note ? `: ${m.note}` : ''}`;
+    },
+    cellRenderer: ({ data }: ICellRendererParams<Row>) => {
+      const m = data?.marks[i];
+      if (!m) return <span className="dash">—</span>;
+      return (
+        <span className="markcell" title={`${MARK_WORD[m.holds]}${m.note ? `: ${m.note}` : ''}`}>
+          <MarkDot holds={m.holds} />
+        </span>
+      );
+    },
+  }));
+}
 
 export const defaultColDef: ColDef<Row> = {
-  sortable: true,
   resizable: true,
-  filter: true,
-  floatingFilter: false,
+  suppressHeaderMenuButton: true,
 };
 
-export { money };
+/** The columns every errand has, whatever was asked for. */
+export function baseColumns(): ColDef<Row>[] {
+  return [
+    {
+      headerName: 'Product',
+      field: 'title',
+      flex: 3,
+      minWidth: 240,
+      cellRenderer: ProductCell,
+      tooltipField: 'title',
+      filter: 'agTextColumnFilter',
+    },
+    {
+      headerName: 'Price',
+      field: 'price',
+      width: 128,
+      type: 'numericColumn',
+      cellRenderer: PriceCell,
+      filter: 'agNumberColumnFilter',
+    },
+    {
+      headerName: 'Why the agent kept it',
+      field: 'why',
+      flex: 2,
+      minWidth: 200,
+      cellClass: 'whycell',
+      filter: 'agTextColumnFilter',
+      tooltipField: 'why',
+      // Clamped rather than auto-height: a row that grows to fit its prose
+      // breaks the pitch the ledger is read across.
+      cellRenderer: ({ value }: ICellRendererParams<Row>) => (
+        <span className="why2">{value as string}</span>
+      ),
+    },
+  ];
+}
