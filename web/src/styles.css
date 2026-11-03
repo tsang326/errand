@@ -113,8 +113,12 @@ h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.015em; margin: 0 0 4p
   border: 1px solid var(--control);
   border-radius: var(--radius-control);
   padding: 10px 12px;
-  resize: vertical;
+  /* The box sizes itself to the sentence (see App.tsx), so a drag handle would
+     only fight it. A very long sentence stops growing and scrolls instead. */
+  resize: none;
+  overflow-y: auto;
   min-height: 44px;
+  max-height: 180px;
 }
 .ask textarea::placeholder { color: var(--muted); }
 button.primary {
@@ -393,6 +397,9 @@ button.primary:disabled { background: #2b2e33; color: #9499a1; cursor: default; 
 @media (max-width: 700px) {
   .canvas, .topbar-inner, .cartbar-inner { width: calc(100% - 32px); }
   .ask { flex-direction: column; }
+  /* flex:1 governs the width in a row and the height in a column: left as it
+     is, the box the sentence sized itself to gets squashed back to one line. */
+  .ask textarea { flex: none; }
   .ask button.primary { height: var(--control-height); }
   .counts { grid-template-columns: 1fr 1fr; }
   .counts .count:last-child:nth-child(odd) { grid-column: 1 / -1; }
@@ -410,9 +417,6 @@ button.primary:disabled { background: #2b2e33; color: #9499a1; cursor: default; 
   /* The export label broke across two lines inside its own button. */
   .toolbar { flex-direction: column; align-items: stretch; }
   .toolbar .ghost { white-space: nowrap; }
-  /* One line of input is enough on a desktop; a phone wraps the sentence to
-     two, so the box keeps room for them. */
-  .ask textarea { min-height: 64px; }
   /* The figure band stacks: figures across the top, the tools under them. */
   .band { flex-direction: column; align-items: stretch; gap: 18px; }
   .figures { gap: 20px; justify-content: space-between; }
