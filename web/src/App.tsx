@@ -93,6 +93,16 @@ export default function App() {
   // ledger; it scrolled sideways and cut the prose mid-letter. The sentence
   // moves to the row's own sheet there, where it is read whole.
   const narrow = useNarrow(980);
+  const box = useRef<HTMLTextAreaElement>(null);
+
+  // The sentence box grows to whatever the sentence needs. A fixed height cut
+  // the last line off on a phone, where the same sentence takes three lines.
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [sentence, narrow]);
 
   useEffect(() => {
     getHealth().then(setHealth).catch(() => setHealth(undefined));
@@ -163,8 +173,8 @@ export default function App() {
   }, [band]);
 
   const columns = useMemo<(ColDef<Row> | ColGroupDef<Row>)[]>(() => {
-    const [product, ...rest] = baseColumns().filter((c) => !(narrow && c.field === 'why'));
-    const reqs = requirementColumns(requirements);
+    const [product, ...rest] = baseColumns(narrow).filter((c) => !(narrow && c.field === 'why'));
+    const reqs = requirementColumns(requirements, narrow);
     // The requirement columns are grouped under one line that names what they
     // are: the buyer's own words. Without it they read as three unrelated
     // columns of dots.
@@ -267,6 +277,7 @@ export default function App() {
 
         <section className="ask">
           <textarea
+            ref={box}
             value={sentence}
             onChange={(e) => setSentence(e.target.value)}
             rows={1}

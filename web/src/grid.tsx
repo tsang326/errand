@@ -66,12 +66,18 @@ function PriceCell({ data }: ICellRendererParams<Row>) {
  * the buyer's own words, which is the one thing a retailer's own filters can
  * never be.
  */
-export function requirementColumns(requirements: readonly string[]): ColDef<Row>[] {
+export function requirementColumns(
+  requirements: readonly string[],
+  narrow = false,
+): ColDef<Row>[] {
+  // On a narrow screen every pixel a mark column takes is a pixel the price
+  // loses off the right edge, so the cap drops with the viewport.
+  const cap = narrow ? 124 : 170;
   return requirements.map((text, i) => ({
     headerName: text,
     headerTooltip: text,
     colId: `req-${i}`,
-    width: Math.min(170, Math.max(110, text.length * 6)),
+    width: Math.min(cap, Math.max(narrow ? 96 : 110, text.length * 6)),
     // Centred, so the marks read as a matrix across the rows rather than as a
     // dot stranded at the left edge of a wide column.
     cellClass: 'reqcell',
@@ -109,13 +115,13 @@ export const defaultColDef: ColDef<Row> = {
 };
 
 /** The columns every errand has, whatever was asked for. */
-export function baseColumns(): ColDef<Row>[] {
+export function baseColumns(narrow = false): ColDef<Row>[] {
   return [
     {
       headerName: 'Product',
       field: 'title',
       flex: 3,
-      minWidth: 240,
+      minWidth: narrow ? 184 : 240,
       cellRenderer: ProductCell,
       tooltipField: 'title',
       filter: 'agTextColumnFilter',
@@ -125,7 +131,7 @@ export function baseColumns(): ColDef<Row>[] {
       field: 'price',
       // Wide enough for a price and the struck-through one beside it: at 128
       // the comparison read "$107…", which looks like a bug, not a saving.
-      width: 152,
+      width: narrow ? 120 : 152,
       type: 'numericColumn',
       cellRenderer: PriceCell,
       filter: 'agNumberColumnFilter',
