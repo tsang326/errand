@@ -72,6 +72,10 @@ export function requirementColumns(requirements: readonly string[]): ColDef<Row>
     headerTooltip: text,
     colId: `req-${i}`,
     width: Math.min(170, Math.max(110, text.length * 6)),
+    // Centred, so the marks read as a matrix across the rows rather than as a
+    // dot stranded at the left edge of a wide column.
+    cellClass: 'reqcell',
+    headerClass: 'reqhead',
     // The buyer's own words are the header; truncating them to "will not glare
     // on a seco…" throws away the one thing this column is for.
     wrapHeaderText: true,

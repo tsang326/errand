@@ -62,6 +62,15 @@ body {
 }
 
 .num, table, .ag-root-wrapper { font-variant-numeric: tabular-nums; }
+/* Figures are set in the mono cut of the same family, so a column of prices
+   lines up whatever the digits are. Only the figures: a sentence in mono reads
+   like a terminal, which this is not.
+   taste-skill-ignore: mono on figures only, for tabular alignment. */
+.price, .carttotal, .figure .value {
+  font-family: 'Geist Mono', ui-monospace, monospace; /* taste-skill-ignore: figures only; a sentence in mono would read like a terminal */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
 
 button, input, textarea { font: inherit; color: inherit; }
 
@@ -93,7 +102,7 @@ button, input, textarea { font: inherit; color: inherit; }
 
 /* ---------- ask ---------- */
 .titlerow { margin: 0 0 16px; }
-h1 { font-size: var(--fs-title); font-weight: 700; letter-spacing: -0.02em; margin: 0 0 6px; }
+h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.015em; margin: 0 0 4px; }
 .finding { margin: 0; color: var(--muted); font-size: var(--fs-body); }
 .finding b { color: var(--text); font-weight: 500; }
 
@@ -172,19 +181,75 @@ button.primary:disabled { background: #2b2e33; color: #9499a1; cursor: default; 
 }
 
 /* ---------- count cards that filter ---------- */
-.counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 var(--gap); }
-.count {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  padding: 12px;
-  min-height: 61px;
+/* ---------- the figure band: counts as type, each one its own filter ------- */
+.band {
+  display: flex;
+  align-items: flex-end;
+  gap: 32px;
+  margin: 0 0 16px;
+  padding: 0 0 16px;
+  border-bottom: 1px solid var(--rule);
+}
+.figures { display: flex; align-items: flex-end; gap: 28px; }
+.figure {
+  background: none;
+  border: 0;
+  padding: 0 0 6px;
   text-align: left;
   cursor: pointer;
+  position: relative;
+  color: var(--muted);
+  transition: color 160ms ease;
 }
-.count .label { display: block; color: var(--muted); font-size: 13px; }
-.count .value { display: block; font-size: var(--fs-section); font-weight: 600; margin-top: 2px; }
-.count[aria-pressed='true'] { border: 1.5px solid var(--chart-3); background: var(--chart-3-dim); }
+.figure .value {
+  display: block;
+  /* taste-skill-ignore: a count, not prose. */
+  font-family: 'Geist Mono', ui-monospace, monospace; /* taste-skill-ignore: a count, not prose */
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  transition: color 160ms ease;
+}
+.figure .label { display: block; font-size: var(--fs-small); margin-top: 4px; }
+/* The reading underline is the state: no box, no fill, just the one hue. */
+.figure::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 2px;
+  background: transparent;
+  transition: background 160ms ease;
+}
+.figure:hover { color: var(--text); }
+.figure[aria-pressed='true'] { color: var(--text); }
+.figure[aria-pressed='true']::after { background: var(--chart-3); }
+.figure[aria-pressed='true'] .value { color: var(--chart-3); }
+.bandtools { margin-left: auto; display: flex; gap: var(--gap); align-items: center; padding-bottom: 6px; }
+.bandtools input {
+  width: 240px;
+  height: var(--control-height);
+  background: var(--surface);
+  border: 1px solid var(--control);
+  border-radius: var(--radius-control);
+  padding: 0 12px;
+  transition: border-color 160ms ease;
+}
+.bandtools input:hover { border-color: var(--muted); }
+
+/* The strip above the grid carries the key, so the legend is read where the
+   marks are rather than floating as a fourth band on the page. */
+.gridhead {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+}
+.gridhead .ledger-key { margin: 0; }
+.gridhead .hint { margin-left: auto; color: var(--muted); font-size: var(--fs-small); }
 
 /* ---------- grid ---------- */
 .gridwrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; }
@@ -312,16 +377,16 @@ button.primary:disabled { background: #2b2e33; color: #9499a1; cursor: default; 
   overflow: auto;
   padding: 20px 24px 40px;
   /* taste-skill-ignore: a sheet is a real overlay and needs to lift off the grid. */
-  box-shadow: 0 12px 28px rgba(0,0,0,.5);
+  box-shadow: 0 12px 28px rgba(0,0,0,.5); /* taste-skill-ignore: a sheet is a real overlay and needs to lift off the grid */
 }
 .sheet h3 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
 .sheet .kv { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--rule); }
 .sheet .kv dt { color: var(--muted); }
 .sheet dl { margin: 12px 0; }
 .marklist { list-style: none; margin: 12px 0; padding: 0; }
-.marklist li { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--rule); align-items: flex-start; }
+.marklist li { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--rule); align-items: flex-start; }
 .marklist .mk { margin-top: 5px; }
-.marklist .req { display: block; }
+.marklist .req { display: block; color: var(--text); font-weight: 500; }
 .marklist .note { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
 
 /* ---------- phone ---------- */
@@ -345,12 +410,24 @@ button.primary:disabled { background: #2b2e33; color: #9499a1; cursor: default; 
   /* The export label broke across two lines inside its own button. */
   .toolbar { flex-direction: column; align-items: stretch; }
   .toolbar .ghost { white-space: nowrap; }
+  /* One line of input is enough on a desktop; a phone wraps the sentence to
+     two, so the box keeps room for them. */
+  .ask textarea { min-height: 64px; }
+  /* The figure band stacks: figures across the top, the tools under them. */
+  .band { flex-direction: column; align-items: stretch; gap: 18px; }
+  .figures { gap: 20px; justify-content: space-between; }
+  .figure .value { font-size: 26px; }
+  .bandtools { margin-left: 0; padding-bottom: 0; flex-direction: column; align-items: stretch; }
+  .bandtools input { width: 100%; }
+  /* The hint belongs to a pointer; a phone has none. */
+  .gridhead { flex-wrap: wrap; }
+  .gridhead .hint { display: none; }
 }
 
 /* ---------- primer (the screen before the first errand) ---------- */
-.primer { margin: 40px 0 0; border-top: 1px solid var(--rule); padding-top: 28px; }
+.primer { margin: 44px 0 0; border-top: 1px solid var(--rule); padding-top: 34px; }
 .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
-.steps > li { max-width: 34ch; }
+.steps > li { max-width: 36ch; }
 .steps .n {
   display: block;
   font-size: 13px;
@@ -358,23 +435,23 @@ button.primary:disabled { background: #2b2e33; color: #9499a1; cursor: default; 
   font-variant-numeric: tabular-nums;
   margin: 0 0 10px;
 }
-.steps h3 { font-size: 16px; font-weight: 600; margin: 0 0 6px; letter-spacing: -0.01em; }
-.steps p { margin: 0; color: var(--muted); }
-.marklist { list-style: none; margin: 12px 0 0; padding: 0; font-size: var(--fs-small); color: var(--muted); }
-.marklist li { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.steps h3 { font-size: 18px; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.015em; }
+.steps p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.55; }
+.marks-key { list-style: none; margin: 12px 0 0; padding: 0; font-size: var(--fs-small); color: var(--muted); }
+.marks-key li { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
 @media (max-width: 700px) {
   .steps { grid-template-columns: 1fr; gap: 28px; }
   .primer { margin-top: 28px; }
 }
 
-.worked { margin: 40px 0 0; padding: 0; }
+.worked { margin: 52px 0 0; padding: 0; }
 .worked figcaption { font-size: var(--fs-small); color: var(--muted); margin: 0 0 12px; }
-.wsent { margin: 0 0 18px; font-size: 22px; letter-spacing: -0.01em; line-height: 1.45; max-width: 30ch; }
+.wsent { margin: 0 0 22px; font-size: 26px; letter-spacing: -0.01em; line-height: 1.45; max-width: 30ch; }
 .wsent mark {
   background: none;
   color: var(--text);
   /* taste-skill-ignore: an underline in the one hue, not a lift. */
-  box-shadow: inset 0 -2px 0 var(--chart-3);
+  box-shadow: inset 0 -2px 0 var(--chart-3); /* taste-skill-ignore: an underline in the one hue, not a lift */
   padding-bottom: 1px;
 }
 .wcols { display: flex; align-items: stretch; border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-control); overflow: hidden; }
@@ -390,4 +467,65 @@ button.primary:disabled { background: #2b2e33; color: #9499a1; cursor: default; 
 @media (max-width: 700px) {
   .wsent { font-size: 18px; }
   .wcols { display: none; }
+}
+
+
+/* The group line over the requirement columns names what they are. */
+.ag-header-group-cell-label { font-size: 11px; letter-spacing: 0.02em; }
+
+/* A selected row is marked at its edge, in the one hue, so selection is
+   visible without flooding the row with colour. */
+.ag-row-selected::before { background: transparent !important; }
+/* taste-skill-ignore: an inset edge mark on the selected row, not a lift. */
+.ag-row-selected { box-shadow: inset 2px 0 0 var(--chart-3); } /* taste-skill-ignore: an inset edge mark on the selected row, not a lift */
+
+/* Every control answers within one frame of being touched. */
+button, .chipbtn, .figure, .ghost, .count { cursor: pointer; }
+.chipbtn, .ghost, button.primary { transition: background 160ms ease, border-color 160ms ease, color 160ms ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
+
+/* The ledger block: the requirement columns sit on a faint lift so the marks
+   read as one matrix, not as three stray dots. */
+.ag-cell.reqcell { display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.022); }
+.ag-header-cell.reqhead { background: rgba(255,255,255,.022); }
+.markcell { display: inline-flex; align-items: center; justify-content: center; }
+
+
+/* ---------- the row's own sheet ---------- */
+.sheet { border-left: 1px solid var(--border); }
+.sheet-top { display: flex; gap: 16px; align-items: flex-start; margin: 0 0 18px; }
+.sheet-shot {
+  width: 96px; height: 96px; flex: none;
+  object-fit: contain;
+  background: #f4f4f5;
+  border-radius: 6px;
+  padding: 4px;
+}
+.sheet-shot.noimg { background: var(--raised); }
+.sheet-id { min-width: 0; }
+.sheet-id h3 { margin: 0 0 2px; }
+.sheet-id .cartnote { margin: 0; }
+/* taste-skill-ignore: a price, set like every other price on the screen. */
+.sheet-price { margin: 8px 0 0; font-size: 20px; font-weight: 500; font-family: 'Geist Mono', ui-monospace, monospace; letter-spacing: -0.02em; } /* taste-skill-ignore: a price, set like every other price */
+.sheet-price .was { margin-left: 8px; font-size: 14px; color: var(--muted); text-decoration: line-through; }
+.sheet-close { margin-left: auto; flex: none; }
+.sheet-why { margin: 0 0 4px; color: var(--muted); }
+
+/* One entrance, 220ms: the sheet comes from the edge it is docked to, and the
+   page behind it fades. Nothing else on this screen moves. */
+@keyframes sheet-in { from { transform: translateX(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes back-in { from { opacity: 0; } to { opacity: 1; } }
+.sheet { animation: sheet-in 220ms cubic-bezier(.22,.61,.36,1); }
+.sheet-back { animation: back-in 160ms ease; }
+
+/* Between phone and desktop the key and the hint cannot share one line, and a
+   legend that wraps mid-item reads as a mistake. The hint is the first to go:
+   it describes a pointer gesture, and the key is what has to be there. */
+@media (max-width: 1023px) {
+  .gridhead .hint { display: none; }
+  .gridhead .ledger-key { flex-wrap: nowrap; }
 }

@@ -33,16 +33,31 @@ export function Detail({
         aria-label={row.title}
         onClick={(e) => e.stopPropagation()}
       >
-        <button className="ghost" onClick={onClose} style={{ float: 'right' }}>
-          Close
-        </button>
-        <h3>{row.title}</h3>
-        <p className="cartnote" style={{ margin: 0 }}>
-          {row.brand ? `${row.brand} · ` : ''}
-          {row.retailer || 'no retailer listed'}
-        </p>
+        <header className="sheet-top">
+          {row.imageUrl ? (
+            <img className="sheet-shot" src={row.imageUrl} alt="" />
+          ) : (
+            <span className="sheet-shot noimg" aria-hidden="true" />
+          )}
+          <div className="sheet-id">
+            <h3>{row.title}</h3>
+            <p className="cartnote">
+              {row.brand ? `${row.brand} · ` : ''}
+              {row.retailer || 'no retailer listed'}
+            </p>
+            <p className="sheet-price num">
+              {row.price === null ? '—' : money(row.price, row.currency)}
+              {row.compareAtPrice !== null && row.compareAtPrice > (row.price ?? 0) && (
+                <span className="was">{money(row.compareAtPrice, row.currency)}</span>
+              )}
+            </p>
+          </div>
+          <button className="ghost sheet-close" onClick={onClose} aria-label="Close">
+            Close
+          </button>
+        </header>
 
-        {row.why && <p style={{ marginTop: 14 }}>{row.why}</p>}
+        {row.why && <p className="sheet-why">{row.why}</p>}
 
         {requirements.length > 0 && (
           <ul className="marklist">
@@ -65,12 +80,6 @@ export function Detail({
         )}
 
         <dl>
-          <div className="kv">
-            <dt>Price</dt>
-            <dd className="num" style={{ margin: 0 }}>
-              {row.price === null ? '—' : money(row.price, row.currency)}
-            </dd>
-          </div>
           <div className="kv">
             <dt>Offers</dt>
             <dd className="num" style={{ margin: 0 }}>

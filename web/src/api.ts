@@ -21,7 +21,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     const e = err as Error;
     if (e.name === 'TimeoutError' || e.name === 'AbortError') {
       throw new Error(
-        'the agent did not answer within 90 seconds — this demo sleeps when idle, so try once more',
+        'the agent did not answer within 90 seconds. This demo sleeps when idle, so try once more.',
       );
     }
     throw new Error(`could not reach the agent: ${e.message}`);
