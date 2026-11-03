@@ -1,0 +1,256 @@
+:root {
+  --bg: #0d1013;
+  --panel: #15191e;
+  --line: #262c33;
+  --ink: #e8ecf1;
+  --muted: #8b949e;
+  --accent: #ffc439; /* PayPal's yellow, the one colour the eye should go to */
+  --good: #3fb950;
+  --mixed: #d29922;
+  --bad: #f85149;
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.app {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 28px 24px 60px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+h1 {
+  margin: 0;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  margin: 6px 0 0;
+  color: var(--muted);
+  max-width: 62ch;
+  line-height: 1.5;
+}
+
+.status {
+  display: flex;
+  gap: 22px;
+  margin: 0;
+  font-size: 13px;
+}
+.status div { text-align: right; }
+.status dt { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+.status dd { margin: 2px 0 0; font-variant-numeric: tabular-nums; }
+.status .ok { color: var(--good); }
+.status .warn { color: var(--mixed); }
+
+.ask {
+  display: flex;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+textarea, .controls input {
+  flex: 1;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 15px;
+  resize: vertical;
+}
+textarea:focus, .controls input:focus { outline: 2px solid #2f81f7; outline-offset: -1px; }
+
+button { font: inherit; cursor: pointer; }
+
+.primary {
+  background: var(--accent);
+  color: #15191e;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 24px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.primary:disabled { opacity: 0.45; cursor: default; }
+
+.link {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 2px 0;
+  text-align: left;
+}
+.link:hover { color: var(--ink); }
+
+.examples { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; font-size: 13px; }
+
+.error, .warn-banner {
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 16px;
+  font-size: 14px;
+}
+.error { background: #3d1518; color: #ffb4ae; }
+.warn-banner { background: #3a2d10; color: #e3c171; }
+
+.plan {
+  margin-top: 24px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.plan > div { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.label {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  min-width: 82px;
+}
+code { background: #0b0e11; border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; font-size: 13px; }
+.plan-meta { color: var(--muted); font-size: 12px; }
+
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  background: #1d2630;
+  border: 1px solid #2d3a47;
+  color: #a9c2dc;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  max-width: 28ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip-bad { background: #3a1a1c; border-color: #5c2a2d; color: #ffb4ae; }
+
+/* In the grid, a miss cut to "light temperat…" tells the shopper nothing, so
+   those chips wrap over several lines. The plan pills above keep one line. */
+.ag-cell .chip {
+  white-space: normal;
+  max-width: 100%;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.35;
+  /* A pill radius on a three-line chip reads as an oval blob. */
+  border-radius: 8px;
+}
+.ag-cell .chips { padding: 6px 0; }
+
+.controls { display: flex; gap: 12px; align-items: center; margin: 18px 0 10px; }
+.bands { display: flex; gap: 0; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.band { background: var(--panel); color: var(--muted); border: 0; padding: 9px 15px; }
+.band.on { background: #233041; color: var(--ink); }
+
+.grid { height: 620px; }
+
+.product { display: flex; gap: 10px; align-items: center; height: 100%; }
+.product img, .noimg {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #fff;
+  flex: 0 0 auto;
+}
+.noimg { background: #20262d; }
+.product-text { min-width: 0; }
+.product-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.product-brand { color: var(--muted); font-size: 12px; }
+
+.why-cell { line-height: 1.45; padding-top: 8px; padding-bottom: 8px; }
+
+.fit { display: flex; align-items: center; gap: 8px; height: 100%; }
+.fit-bar { height: 7px; border-radius: 4px; min-width: 2px; }
+.fit-good { background: var(--good); }
+.fit-mixed { background: var(--mixed); }
+.fit-bad { background: var(--bad); }
+.fit-num { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--muted); }
+
+.price { display: flex; gap: 8px; align-items: baseline; justify-content: flex-end; }
+.was { color: var(--muted); font-size: 12px; }
+
+.pill { border-radius: 999px; padding: 2px 9px; font-size: 12px; }
+.pill-in { background: #11311c; color: #7ee787; }
+.pill-out { background: #3a1a1c; color: #ffb4ae; }
+
+.muted { color: var(--muted); }
+
+.cart {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 18px;
+}
+.cart .primary { height: 42px; }
+
+.order {
+  margin-top: 14px;
+  background: #11311c;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 14px;
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.order a { color: #7ee787; }
+
+.detail {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(440px, 92vw);
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  padding: 22px 24px 40px;
+  box-shadow: -18px 0 50px rgba(0, 0, 0, 0.45);
+}
+.detail header { align-items: center; }
+.detail h2 { font-size: 18px; margin: 0; line-height: 1.35; }
+.detail h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  margin: 22px 0 8px;
+}
+.detail-why { line-height: 1.55; }
+.detail-path { color: var(--muted); font-size: 13px; }
+.attrs div { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+.attrs dt { color: var(--muted); min-width: 44%; font-size: 13px; }
+.attrs dd { margin: 0; font-size: 13px; }
+.features { margin: 0; padding-left: 18px; line-height: 1.55; font-size: 14px; }
+.features li { margin-bottom: 6px; }
+.detail-foot { color: var(--muted); font-size: 13px; margin-top: 24px; }

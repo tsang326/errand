@@ -1,6 +1,9 @@
 import express, { type Request, type Response } from 'express';
 import cors from 'cors';
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import { config, channel3Live, paypalConfigured } from '../config.js';
 import { searchProducts } from '../channel3/client.js';
@@ -70,6 +73,8 @@ type Errand = {
   note?: string;
   rows: Row[];
   createdAt: string;
+  /** Stored, not just returned: reopening an errand must give the same shape. */
+  ranking: { source: 'model' | 'passthrough'; costUsd: number };
 };
 
 /**
@@ -138,13 +143,11 @@ export function buildApp() {
         ...(search.note ? { note: search.note } : {}),
         rows: toRows(search.products, ranking.verdicts),
         createdAt: new Date().toISOString(),
+        ranking: { source: ranking.source, costUsd: Number(ranking.costUsd.toFixed(4)) },
       };
       errands.set(errand.id, errand);
 
-      return res.json({
-        ...errand,
-        ranking: { source: ranking.source, costUsd: Number(ranking.costUsd.toFixed(4)) },
-      });
+      return res.json(errand);
     } catch (err) {
       const e = err as Error & { code?: string; status?: number };
       if (e.code === 'ai_budget_spent') return fail(res, 429, e.message, { code: e.code });
@@ -191,6 +194,19 @@ export function buildApp() {
       return fail(res, 502, (err as Error).message.slice(0, 400));
     }
   });
+
+  // One service serves both halves, which is what the deployment target gives
+  // us and what keeps the browser's fetch paths same-origin. The API routes are
+  // registered above, so they always win over the static handler.
+  const web = join(dirname(fileURLToPath(import.meta.url)), '../../../web/dist');
+  if (existsSync(web)) {
+    app.use(express.static(web));
+    // Anything that is not an API route and not a file is the app itself: the
+    // errand id lives in the hash, but PayPal's return_url is a real path.
+    app.get(/^(?!\/api\/).*/, (_req: Request, res: Response) => {
+      res.sendFile(join(web, 'index.html'));
+    });
+  }
 
   return app;
 }
