@@ -6,6 +6,8 @@ export type Row = {
   category: string;
   categoryPath: string[];
   retailer: string;
+  /** The retailer's own page for this offer. Empty when the offer has none. */
+  url: string;
   price: number | null;
   compareAtPrice: number | null;
   currency: string;

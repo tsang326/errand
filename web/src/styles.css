@@ -277,9 +277,20 @@ button.primary:disabled { background: #2b2e33; color: #9499a1; cursor: default; 
   cursor: pointer;
 }
 .ghost:hover { border-color: var(--text); }
+/* The same control as an anchor: a link out is still a button to press. */
+a.ghost {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+  white-space: nowrap;
+}
 
 /* cells */
 .product { display: flex; gap: 12px; align-items: center; height: 100%; }
+/* Quiet until it is wanted: the domain reads as text, underlines on hover. */
+.shoplink { color: inherit; text-decoration: none; }
+.shoplink:hover { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
 .product img, .noimg {
   width: 48px; height: 48px; flex: none;
   object-fit: contain;
@@ -521,6 +532,7 @@ button, .chipbtn, .figure, .ghost, .count { cursor: pointer; }
 .sheet-price { margin: 8px 0 0; font-size: 20px; font-weight: 500; font-family: 'Geist Mono', ui-monospace, monospace; letter-spacing: -0.02em; } /* taste-skill-ignore: a price, set like every other price */
 .sheet-price .was { margin-left: 8px; font-size: 14px; color: var(--muted); text-decoration: line-through; }
 .sheet-close { margin-left: auto; flex: none; }
+.sheet-open { margin: 12px 0 0; }
 .sheet-why { margin: 0 0 4px; color: var(--muted); }
 
 /* One entrance, 220ms: the sheet comes from the edge it is docked to, and the

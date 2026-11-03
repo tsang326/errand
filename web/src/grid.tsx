@@ -38,8 +38,24 @@ function ProductCell({ data }: ICellRendererParams<Row>) {
       <span className="ptitle">
         <span className="t">{data.title}</span>
         <span className="b">
-          {data.brand ? `${data.brand} · ` : ''}
-          {data.retailer || 'no retailer listed'}
+          {data.brand ? `${data.brand} ·` : ''}
+          {/* The retailer's name is the link to the listing: the shortlist
+              claims these are real products, and this is how that is checked.
+              The click must not reach the row, which would select it. */}
+          {data.url ? (
+            <a
+              className="shoplink"
+              href={data.url}
+              target="_blank"
+              rel="noreferrer noopener"
+              onClick={(e) => e.stopPropagation()}
+              title={`Open this listing on ${data.retailer}`}
+            >
+              {data.retailer}
+            </a>
+          ) : (
+            data.retailer || 'no retailer listed'
+          )}
           {!data.inStock && <span className="pill pill-out">cannot be bought</span>}
         </span>
       </span>
@@ -150,5 +166,9 @@ export function baseColumns(narrow = false): ColDef<Row>[] {
         <span className="why2">{value as string}</span>
       ),
     },
+    // Not on screen - the retailer's name in the product cell is the link -
+    // but the CSV is useless without somewhere to go, so it rides along. It
+    // goes last: App.tsx takes the first column by position.
+    { headerName: 'Listing', field: 'url', hide: true },
   ];
 }
