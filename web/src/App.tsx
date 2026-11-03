@@ -351,7 +351,7 @@ export default function App() {
                 />
                 <button
                   className="ghost"
-                  onClick={() => api.current?.exportDataAsCsv({ fileName: 'errand.csv' })}
+                  onClick={() => api.current?.exportDataAsCsv({ fileName: 'errand.csv', allColumns: true })}
                 >
                   Export what is shown
                 </button>

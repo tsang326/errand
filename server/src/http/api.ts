@@ -29,6 +29,12 @@ export type Row = {
   category: string;
   categoryPath: string[];
   retailer: string;
+  /**
+   * Channel3's buy link for that offer, which is where the product actually
+   * lives. Without it the shortlist is a claim about real listings that the
+   * reader has no way to check.
+   */
+  url: string;
   price: number | null;
   compareAtPrice: number | null;
   currency: string;
@@ -59,6 +65,7 @@ export function toRows(products: readonly Product[], verdicts: readonly Verdict[
       category: p.category,
       categoryPath: p.categoryPath,
       retailer: offer?.domain ?? '',
+      url: offer?.url ?? '',
       price: offer?.price ?? null,
       compareAtPrice: offer?.compareAtPrice ?? null,
       currency: offer?.currency ?? 'USD',

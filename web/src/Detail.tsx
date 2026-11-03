@@ -51,6 +51,13 @@ export function Detail({
                 <span className="was">{money(row.compareAtPrice, row.currency)}</span>
               )}
             </p>
+            {/* Next to the price, which is what it is about, rather than up in
+                the corner competing with Close for the title's width. */}
+            {row.url && (
+              <a className="ghost sheet-open" href={row.url} target="_blank" rel="noreferrer noopener">
+                Open the listing
+              </a>
+            )}
           </div>
           <button className="ghost sheet-close" onClick={onClose} aria-label="Close">
             Close
