@@ -1,0 +1,333 @@
+{
+ "products": [
+  {
+   "id": "I8Kcjj2",
+   "title": "Dinosaur Egg Toys",
+   "description": "A set of 6 hatching dinosaur eggs designed for children ages 3-5. Each plastic egg contains a surprise dinosaur figure, encouraging curiosity, motor skills, and creative storytelling. The set includes various dinosaur species and is suitable for educational play, birthday gifts, or Easter basket stuffers.",
+   "brands": [
+    {
+     "id": "gSw7",
+     "name": "GARVEE"
+    }
+   ],
+   "images": [
+    {
+     "url": "https://cdn.trychannel3.com/a7581202-5fba-42e0-9a93-e184d91d6f6c?aid=REDACTED&mid=REDACTED",
+     "cleaned_url": "https://cdn.trychannel3.com/cleaned/v1/a7581202-5fba-42e0-9a93-e184d91d6f6c?aid=REDACTED&mid=REDACTED",
+     "is_main_image": true,
+     "shot_type": "packaging",
+     "alt_text": "Pack of dinosaur egg toys in a box with various dinosaur molds."
+    },
+    {
+     "url": "https://cdn.trychannel3.com/5d8a4b6e-8edc-4611-8167-7561e4526887?aid=REDACTED&mid=REDACTED",
+     "cleaned_url": "https://cdn.trychannel3.com/cleaned/v1/5d8a4b6e-8edc-4611-8167-7561e4526887?aid=REDACTED&mid=REDACTED",
+     "is_main_image": false,
+     "shot_type": "packaging",
+     "alt_text": "Pack of dinosaur egg toys in a box showing various dinosaur egg colors."
+    },
+    {
+     "url": "https://cdn.trychannel3.com/7dfd8306-4f3f-4d73-896c-38f8d2069309?aid=REDACTED&mid=REDACTED",
+     "cleaned_url": "https://cdn.trychannel3.com/8da38b8f-9a38-4e16-91c4-80e4a94e2592?aid=REDACTED&mid=REDACTED",
+     "is_main_image": false,
+     "shot_type": "lifestyle",
+     "alt_text": "Dinosaur deformation eggs and toys displayed in a vibrant, jungle-like scene."
+    },
+    {
+     "url": "https://cdn.trychannel3.com/c11c84cd-529c-4e75-8e66-cf37a2c7dd09?aid=REDACTED&mid=REDACTED",
+     "cleaned_url": "https://cdn.trychannel3.com/cleaned/v1/c11c84cd-529c-4e75-8e66-cf37a2c7dd09?aid=REDACTED&mid=REDACTED",
+     "is_main_image": false,
+     "shot_type": "hero",
+     "alt_text": "Close-up of a brown Tyrannosaurus Rex egg toy on a light background."
+    },
+    {
+     "url": "https://cdn.trychannel3.com/4a166751-f038-46cd-b0e0-37115cc79616?aid=REDACTED&mid=REDACTED",
+     "cleaned_url": "https://cdn.trychannel3.com/df0db5e3-09b5-4edb-8417-0db33ef5cf98?aid=REDACTED&mid=REDACTED",
+     "is_main_image": false,
+     "shot_type": "lifestyle",
+     "alt_text": "Two children happily examining dinosaur egg toys together."
+    }
+   ],
+   "category": {
+    "slug": "animal-figures",
+    "title": "Animal Figures",
+    "path": [
+     {
+      "slug": "toys-games",
+      "title": "Toys & Games"
+     },
+     {
+      "slug": "toys",
+      "title": "Toys"
+     },
+     {
+      "slug": "dolls-playsets-toy-figures",
+      "title": "Dolls, Playsets & Toy Figures"
+     },
+     {
+      "slug": "action-toy-figures",
+      "title": "Action & Toy Figures"
+     },
+     {
+      "slug": "animal-figures",
+      "title": "Animal Figures"
+     }
+    ],
+    "has_children": false
+   },
+   "gender": null,
+   "age": null,
+   "materials": [
+    "plastic"
+   ],
+   "key_features": [
+    "Surprise Inside Every Egg: Each of the 6 dinosaur eggs contains a dinosaur",
+    "Fun Easter Basket Stuffers: Thoughtful alternative to candy",
+    "Hatch Your Dino Adventure: Excitement of hatching for hands-on play",
+    "Learning Through Play: Encourages creative storytelling, motor skills, and dinosaur exploration"
+   ],
+   "colors": [
+    {
+     "hex": "#dcdcdb",
+     "percentage": 0.799
+    },
+    {
+     "hex": "#9a8586",
+     "percentage": 0.1129
+    },
+    {
+     "hex": "#bcbcb2",
+     "percentage": 0.0881
+    }
+   ],
+   "offers": [
+    {
+     "url": "https://buy.trychannel3.com/I8Kcjj2-Z87s-EB28od?o=REDACTED&aid=REDACTED",
+     "domain": "kohls.com",
+     "price": {
+      "price": 34.12,
+      "compare_at_price": null,
+      "currency": "USD"
+     },
+     "availability": "InStock",
+     "condition": "new",
+     "max_commission_rate": 0.021,
+     "dimensions": {
+      "length": null,
+      "width": {
+       "number": 6.9,
+       "unit": "in"
+      },
+      "height": {
+       "number": 7.6,
+       "unit": "in"
+      },
+      "weight": null
+     }
+    }
+   ],
+   "variants": null,
+   "structured_attributes": {
+    "toy-game-material": [
+     "Plastic"
+    ],
+    "recommended-age-group": [
+     "3-5 years"
+    ]
+   },
+   "ratings": null
+  },
+  {
+   "id": "yTXH9j7",
+   "title": "Mattel Fisher Price Imaginext Jurassic World Baby Dinosaur Figure",
+   "description": "Kids can unwrap exciting dinosaur action with this collection of Imaginext Jurassic World mystery dinosaur figures from Fisher-Price. Each blind bag includes a miniature dinosaur toy with movable arms and legs plus cool translucent details that glow when placed in front of a light. Kids can collect all their favorite Jurassic World dinosaurs for hours of imaginative pretend play! (Each toy sold separately and subject to availability.) Colors and decorations may vary.",
+   "brands": [
+    {
+     "id": "YOx7",
+     "name": "Fisher-Price"
+    },
+    {
+     "id": "abkD",
+     "name": "Mattel"
+    },
+    {
+     "id": "bwgK",
+     "name": "Imaginext"
+    }
+   ],
+   "images": [
+    {
+     "url": "https://cdn.trychannel3.com/0283801d-5f3f-4aea-8c6e-e036b8b2650a?aid=REDACTED&mid=REDACTED",
+     "cleaned_url": "https://cdn.trychannel3.com/cleaned/v1/0283801d-5f3f-4aea-8c6e-e036b8b2650a?aid=REDACTED&mid=REDACTED",
+     "is_main_image": true,
+     "shot_type": "packaging",
+     "alt_text": "Hanging pouch packaging for a Jurassic World baby dinosaur toy."
+    },
+    {
+     "url": "https://cdn.trychannel3.com/f859e1be-e30d-4c4d-b048-dc1d4234e0d8?aid=REDACTED&mid=REDACTED",
+     "cleaned_url": null,
+     "is_main_image": false,
+     "shot_type": "in_use",
+     "alt_text": "Hand interacting with Jurassic World baby dinosaur toy packaging."
+    },
+    {
+     "url": "https://cdn.trychannel3.com/dfa5bece-4ec9-47dd-83c2-9bd8fb99d194?aid=REDACTED&mid=REDACTED",
+     "cleaned_url": null,
+     "is_main_image": false,
+     "shot_type": "hero",
+     "alt_text": "Hanging pouch packaging with text about dinosaur species."
+    },
+    {
+     "url": "https://cdn.trychannel3.com/388b1887-4217-4d30-9f06-ca789b2e7b22?aid=REDACTED&mid=REDACTED",
+     "cleaned_url": null,
+     "is_main_image": false,
+     "shot_type": "lifestyle",
+     "alt_text": "Group shot of various Jurassic World baby dinosaur figures."
+    },
+    {
+     "url": "https://cdn.trychannel3.com/0e764ce4-1151-401c-bb57-91b30a620c45?aid=REDACTED&mid=REDACTED",
+     "cleaned_url": "https://cdn.trychannel3.com/cleaned/v1/0e764ce4-1151-401c-bb57-91b30a620c45?aid=REDACTED&mid=REDACTED",
+     "is_main_image": false,
+     "shot_type": "scale_reference",
+     "alt_text": "Scale reference showing dinosaur outline and size measurement."
+    }
+   ],
+   "category": {
+    "slug": "animal-figures",
+    "title": "Animal Figures",
+    "path": [
+     {
+      "slug": "toys-games",
+      "title": "Toys & Games"
+     },
+     {
+      "slug": "toys",
+      "title": "Toys"
+     },
+     {
+      "slug": "dolls-playsets-toy-figures",
+      "title": "Dolls, Playsets & Toy Figures"
+     },
+     {
+      "slug": "action-toy-figures",
+      "title": "Action & Toy Figures"
+     },
+     {
+      "slug": "animal-figures",
+      "title": "Animal Figures"
+     }
+    ],
+    "has_children": false
+   },
+   "gender": null,
+   "age": null,
+   "materials": [],
+   "key_features": [
+    "Compact Imaginext dinosaur figure designed for hands-on Jurassic World storytelling",
+    "Encourages imaginative prehistoric adventures",
+    "Collectable mini dinosaur surprise toy",
+    "Blind bag mystery figure",
+    "Movable arms and legs",
+    "Translucent details that glow in light",
+    "Collectible series"
+   ],
+   "colors": [
+    {
+     "hex": "#769b35",
+     "percentage": 0.1474
+    },
+    {
+     "hex": "#cda331",
+     "percentage": 0.1464
+    },
+    {
+     "hex": "#97411a",
+     "percentage": 0.1314
+    },
+    {
+     "hex": "#80b441",
+     "percentage": 0.124
+    },
+    {
+     "hex": "#59782f",
+     "percentage": 0.124
+    },
+    {
+     "hex": "#58441a",
+     "percentage": 0.1167
+    },
+    {
+     "hex": "#cbd083",
+     "percentage": 0.1101
+    },
+    {
+     "hex": "#aa7a20",
+     "percentage": 0.1
+    }
+   ],
+   "offers": [
+    {
+     "url": "https://buy.trychannel3.com/yTXH9j7-BsaX-EB28od?o=REDACTED&aid=REDACTED",
+     "domain": "walmart.com",
+     "price": {
+      "price": 5.97,
+      "compare_at_price": 7.3,
+      "currency": "USD"
+     },
+     "availability": "InStock",
+     "condition": "new",
+     "max_commission_rate": 0.07,
+     "dimensions": null
+    },
+    {
+     "url": "https://buy.trychannel3.com/yTXH9j7-p1PB-EB28od?o=REDACTED&aid=REDACTED",
+     "domain": "bestbuy.com",
+     "price": {
+      "price": 9.99,
+      "compare_at_price": 15.99,
+      "currency": "USD"
+     },
+     "availability": "InStock",
+     "condition": "new",
+     "max_commission_rate": 0.005,
+     "dimensions": {
+      "length": null,
+      "width": null,
+      "height": {
+       "number": 3.0,
+       "unit": "in"
+      },
+      "weight": null
+     }
+    }
+   ],
+   "variants": {
+    "options": [],
+    "selected": [
+     {
+      "name": "Character",
+      "label": "Baby Dinosaur"
+     }
+    ]
+   },
+   "structured_attributes": {
+    "recommended-age-group": [
+     "3 years or older"
+    ],
+    "toy-figure-features": [
+     "Collectible",
+     "Accessory set"
+    ],
+    "toy-figure-theme": [
+     "Animal",
+     "Pop culture"
+    ]
+   },
+   "ratings": {
+    "value": 4.62,
+    "count": 24,
+    "source_count": 1
+   }
+  }
+ ],
+ "next_page_token": "REDACTED"
+}

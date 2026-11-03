@@ -1,5 +1,5 @@
 import { config, channel3Live } from '../config.js';
-import type { Product, SearchResult } from './types.js';
+import type { Offer, Product, SearchResult } from './types.js';
 import { fixtureSearch } from './fixtures.js';
 
 type SearchOptions = { query: string; maxPrice?: number; limit?: number };
@@ -48,56 +48,100 @@ export async function searchProducts(opts: SearchOptions): Promise<SearchResult>
     });
   }
 
-  const json = (await res.json()) as unknown;
+  const json = (await res.json()) as { products?: unknown; next_page_token?: unknown };
+  const token = typeof json.next_page_token === 'string' ? json.next_page_token : undefined;
   return {
     origin: 'live',
     query: opts.query,
-    products: normalise(json),
+    products: normalise(json.products),
+    ...(token ? { nextPageToken: token } : {}),
   };
 }
 
-/**
- * Channel3's response is read defensively: this app pins no version of their
- * schema, so a field that moves should cost one empty column, not a 500.
- */
-function normalise(json: unknown): Product[] {
-  const rows = Array.isArray(json)
-    ? json
-    : Array.isArray((json as { products?: unknown })?.products)
-      ? ((json as { products: unknown[] }).products)
-      : Array.isArray((json as { data?: unknown })?.data)
-        ? ((json as { data: unknown[] }).data)
-        : [];
+const str = (v: unknown, fallback = ''): string => (typeof v === 'string' ? v : fallback);
+const num = (v: unknown): number | undefined => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+};
 
-  return rows.flatMap((raw, i): Product[] => {
-    if (typeof raw !== 'object' || raw === null) return [];
-    const r = raw as Record<string, unknown>;
-    const offers = Array.isArray(r.offers) ? r.offers : [];
+/**
+ * Maps the live response onto this app's own shape. Every field is optional on
+ * the way in: Channel3 pins no version for callers, and a row that loses a
+ * field should cost one empty cell rather than the whole search.
+ */
+export function normalise(raw: unknown): Product[] {
+  const rows = Array.isArray(raw) ? raw : [];
+
+  return rows.flatMap((row, i): Product[] => {
+    if (typeof row !== 'object' || row === null) return [];
+    const r = row as Record<string, unknown>;
+
+    const brands = Array.isArray(r.brands) ? r.brands : [];
+    const firstBrand = brands.find((b): b is Record<string, unknown> =>
+      typeof b === 'object' && b !== null);
+
+    const images = Array.isArray(r.images) ? r.images : [];
+    const imgObjs = images.filter((im): im is Record<string, unknown> =>
+      typeof im === 'object' && im !== null);
+    // Prefer the image Channel3 marks as main; prefer its cleaned (background
+    // removed) variant, which is the one that reads at grid row height.
+    const img = imgObjs.find((im) => im.is_main_image === true) ?? imgObjs[0];
+
+    const cat = typeof r.category === 'object' && r.category !== null
+      ? (r.category as Record<string, unknown>)
+      : {};
+    const path = Array.isArray(cat.path) ? cat.path : [];
+
+    const attrsRaw = typeof r.structured_attributes === 'object' && r.structured_attributes !== null
+      ? (r.structured_attributes as Record<string, unknown>)
+      : {};
+    const attributes: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(attrsRaw)) {
+      if (Array.isArray(v)) attributes[k] = v.map((x) => String(x));
+    }
+
+    const offers = (Array.isArray(r.offers) ? r.offers : []).flatMap((o): Offer[] => {
+      if (typeof o !== 'object' || o === null) return [];
+      const off = o as Record<string, unknown>;
+      const priceObj = typeof off.price === 'object' && off.price !== null
+        ? (off.price as Record<string, unknown>)
+        : {};
+      const price = num(priceObj.price) ?? num(off.price);
+      if (price === undefined) return [];
+      const compare = num(priceObj.compare_at_price);
+      const commission = num(off.max_commission_rate);
+      return [
+        {
+          url: str(off.url),
+          domain: str(off.domain),
+          price,
+          ...(compare !== undefined && compare > price ? { compareAtPrice: compare } : {}),
+          currency: str(priceObj.currency, 'USD'),
+          // Anything other than an explicit InStock is treated as not buyable:
+          // proposing a purchase the retailer cannot fulfil is worse than
+          // dropping a row from the shortlist.
+          inStock: off.availability === 'InStock',
+          condition: str(off.condition, 'unknown'),
+          ...(commission !== undefined && commission > 0 ? { commissionRate: commission } : {}),
+        },
+      ];
+    });
+
     return [
       {
-        id: String(r.id ?? r.product_id ?? `row-${i}`),
-        title: String(r.title ?? r.name ?? 'Untitled'),
-        brand: String(r.brand ?? r.brand_name ?? ''),
-        imageUrl: String(r.image_url ?? r.image ?? ''),
-        variants: Array.isArray(r.variants) ? r.variants.map(String) : [],
-        offers: offers.flatMap((o) => {
-          if (typeof o !== 'object' || o === null) return [];
-          const off = o as Record<string, unknown>;
-          const price = Number(off.price ?? off.offer_price ?? NaN);
-          if (!Number.isFinite(price)) return [];
-          return [
-            {
-              merchant: String(off.merchant ?? off.merchant_name ?? off.website ?? ''),
-              price,
-              currency: String(off.currency ?? 'USD'),
-              url: String(off.url ?? off.buy_link ?? ''),
-              inStock: off.availability === undefined ? true : off.availability === 'InStock',
-              ...(Number.isFinite(Number(off.commission_rate))
-                ? { commissionRate: Number(off.commission_rate) }
-                : {}),
-            },
-          ];
-        }),
+        id: str(r.id, `row-${i}`),
+        title: str(r.title, 'Untitled'),
+        description: str(r.description),
+        brand: str(firstBrand?.name),
+        imageUrl: str(img?.cleaned_url) || str(img?.url),
+        imageAlt: str(img?.alt_text),
+        category: str(cat.title),
+        categoryPath: path.flatMap((p) =>
+          typeof p === 'object' && p !== null ? [str((p as Record<string, unknown>).title)] : []),
+        attributes,
+        keyFeatures: Array.isArray(r.key_features) ? r.key_features.map((f) => String(f)) : [],
+        variants: Array.isArray(r.variants) ? r.variants.map((v) => String(v)) : [],
+        offers,
       },
     ];
   });

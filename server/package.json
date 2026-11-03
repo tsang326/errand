@@ -9,7 +9,7 @@
     "start": "node dist/index.js",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test src/**/*.test.ts"
+    "test": "CHANNEL3_API_KEY= OPENAI_API_KEY= tsx --test src/**/*.test.ts"
   },
   "dependencies": {
     "cors": "^2.8.6",
