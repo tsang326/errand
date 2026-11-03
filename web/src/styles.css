@@ -5,27 +5,35 @@
  * ink, grey, or a photograph of a real product.
  */
 :root {
-  /* The face: the stone of a paper shopping list, the thing Errand replaces. */
-  --ground: #f5f4f1;
-  --surface: #ffffff;
-  --raised: #eeeeee;
-  --border: #e6e6e6;
-  --rule: #f0f0f0;
-  --control: #d4d4d4;
-  --text: #0a0a0a;
-  --muted: #6b6b6b;
-  --accent: #141414;
-  --positive: #2e7d32;
-  --negative: #c4242a;
-  --chart-1: #141414;
-  --chart-2: #8a8a8a;
-  --chart-3: #1d5fbf;
-  --pill-positive-bg: #dcfae5;
-  --pill-positive-ink: #04250e;
-  --pill-negative-bg: #ffedea;
-  --pill-negative-ink: #831c1e;
-  --pill-neutral-bg: #eeeeee;
-  --pill-neutral-ink: #3d3d3d;
+  /* The face, in the dark: the ledger read at night. The ground is a true
+     near-black with a trace of blue in it, so the one hue belongs to the same
+     family as the room rather than sitting on top of it. */
+  --ground: #0f1012;
+  --surface: #16181b;
+  --raised: #22252a;
+  --border: #272a2f;
+  --rule: #212429;
+  --control: #3c4046;
+  --text: #ececee;
+  --muted: #9ba0a7;
+  /* The primary action inverts: near-white on the dark ground, the way the
+     near-black button worked on the light one. */
+  --accent: #f2f3f4;
+  --accent-ink: #121316;
+  --positive: #5fd38a;
+  --negative: #ff7a73;
+  --chart-1: #ececee;
+  --chart-2: #7e838b;
+  /* Lifted from #1d5fbf: that blue is 2.3:1 on this ground and the marks are
+     the one thing on the screen that must be read at a glance. */
+  --chart-3: #5b9bf3;
+  --chart-3-dim: #16233a;
+  --pill-positive-bg: #11301c;
+  --pill-positive-ink: #9fe3b6;
+  --pill-negative-bg: #3a1c1d;
+  --pill-negative-ink: #ffb0ab;
+  --pill-neutral-bg: #26282c;
+  --pill-neutral-ink: #c8cbd0;
   --radius-card: 8px;
   --radius-control: 6px;
   --row-height: 44px;
@@ -102,7 +110,7 @@ h1 { font-size: var(--fs-title); font-weight: 700; letter-spacing: -0.02em; marg
 .ask textarea::placeholder { color: var(--muted); }
 button.primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
   border: 0;
   border-radius: var(--radius-control);
   padding: 0 20px;
@@ -113,7 +121,7 @@ button.primary {
 }
 /* A disabled button still has to be read: white on #d4d4d4 was 1.5:1, so the
    waiting state says what it is in ink dark enough to see. */
-button.primary:disabled { background: #e8e8e6; color: #5c5c5c; cursor: default; }
+button.primary:disabled { background: #2b2e33; color: #9499a1; cursor: default; }
 .ask button.primary { height: auto; align-self: stretch; }
 
 .examples { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; align-items: center; }
@@ -176,7 +184,7 @@ button.primary:disabled { background: #e8e8e6; color: #5c5c5c; cursor: default; 
 }
 .count .label { display: block; color: var(--muted); font-size: 13px; }
 .count .value { display: block; font-size: var(--fs-section); font-weight: 600; margin-top: 2px; }
-.count[aria-pressed='true'] { border: 1.5px solid var(--chart-3); background: #f4f7fc; }
+.count[aria-pressed='true'] { border: 1.5px solid var(--chart-3); background: var(--chart-3-dim); }
 
 /* ---------- grid ---------- */
 .gridwrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; }
@@ -206,8 +214,9 @@ button.primary:disabled { background: #e8e8e6; color: #5c5c5c; cursor: default; 
 .product img, .noimg {
   width: 48px; height: 48px; flex: none;
   object-fit: contain;
-  background: var(--raised);
-  border-radius: 2px;
+  background: #f4f4f5;
+  border-radius: 4px;
+  padding: 2px;
 }
 .noimg { display: block; }
 .ptitle { line-height: 18px; overflow: hidden; }
@@ -264,9 +273,9 @@ button.primary:disabled { background: #e8e8e6; color: #5c5c5c; cursor: default; 
 
 /* ---------- states ---------- */
 .notice {
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  color: #92400e;
+  background: #2b2415;
+  border: 1px solid #5c4a1e;
+  color: #e9cc8e;
   border-radius: var(--radius-card);
   padding: 10px 12px;
   font-size: var(--fs-small);
@@ -295,7 +304,7 @@ button.primary:disabled { background: #e8e8e6; color: #5c5c5c; cursor: default; 
 .skelrow { display: flex; align-items: center; gap: 12px; height: 72px; padding: 0 16px; border-top: 1px solid var(--rule); }
 
 /* ---------- detail sheet ---------- */
-.sheet-back { position: fixed; inset: 0; background: rgba(10,10,10,.28); display: flex; justify-content: flex-end; z-index: 20; }
+.sheet-back { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; justify-content: flex-end; z-index: 20; }
 .sheet {
   width: min(520px, 100%);
   background: var(--surface);
@@ -303,7 +312,7 @@ button.primary:disabled { background: #e8e8e6; color: #5c5c5c; cursor: default; 
   overflow: auto;
   padding: 20px 24px 40px;
   /* taste-skill-ignore: a sheet is a real overlay and needs to lift off the grid. */
-  box-shadow: 0 12px 28px rgba(0,0,0,.12);
+  box-shadow: 0 12px 28px rgba(0,0,0,.5);
 }
 .sheet h3 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
 .sheet .kv { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--rule); }
@@ -364,6 +373,7 @@ button.primary:disabled { background: #e8e8e6; color: #5c5c5c; cursor: default; 
 .wsent mark {
   background: none;
   color: var(--text);
+  /* taste-skill-ignore: an underline in the one hue, not a lift. */
   box-shadow: inset 0 -2px 0 var(--chart-3);
   padding-bottom: 1px;
 }
