@@ -534,6 +534,11 @@ button, .chipbtn, .figure, .ghost, .count { cursor: pointer; }
    legend that wraps mid-item reads as a mistake. The hint is the first to go:
    it describes a pointer gesture, and the key is what has to be there. */
 @media (max-width: 1023px) {
+  /* The struck-through list price does not fit beside the real one in a 120px
+     column; it reads as "$11…", which is worse than not showing it. The row's
+     sheet still carries it. */
+  .price .was { display: none; }
+
   .gridhead .hint { display: none; }
   .gridhead .ledger-key { flex-wrap: nowrap; }
 }
