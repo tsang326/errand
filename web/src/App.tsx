@@ -5,6 +5,7 @@ import {
   ModuleRegistry,
   themeQuartz,
   type ColDef,
+  type ColGroupDef,
   type GridApi,
   type GridReadyEvent,
   type IRowNode,
@@ -161,13 +162,21 @@ export default function App() {
     api.current?.onFilterChanged();
   }, [band]);
 
-  const columns = useMemo<ColDef<Row>[]>(() => {
+  const columns = useMemo<(ColDef<Row> | ColGroupDef<Row>)[]>(() => {
     const [product, ...rest] = baseColumns().filter((c) => !(narrow && c.field === 'why'));
+    const reqs = requirementColumns(requirements);
+    // The requirement columns are grouped under one line that names what they
+    // are: the buyer's own words. Without it they read as three unrelated
+    // columns of dots.
+    const judged: ColGroupDef<Row>[] =
+      reqs.length > 0
+        ? [{ headerName: 'Judged against your words', marryChildren: true, children: reqs }]
+        : [];
     // The requirement columns sit between the product and the agent's sentence,
     // so the ruling is read before the prose that explains it. Spreading the
     // rest keeps this honest when a base column is added or dropped: indexing
     // by hand left an undefined in the array and AG Grid threw on build.
-    return [product!, ...requirementColumns(requirements), ...rest];
+    return [product!, ...judged, ...rest];
   }, [requirements, narrow]);
 
   const cart = useMemo(
@@ -260,7 +269,7 @@ export default function App() {
           <textarea
             value={sentence}
             onChange={(e) => setSentence(e.target.value)}
-            rows={2}
+            rows={1}
             placeholder="What do you need?"
             aria-label="What do you need?"
           />
@@ -300,63 +309,63 @@ export default function App() {
           <section style={{ marginTop: 24 }}>
             {errand.origin === 'fixture' && <p className="notice">{errand.note}</p>}
 
-            <div className="counts">
-              <button
-                className="count"
-                aria-pressed={band === 'all'}
-                onClick={() => setBand('all')}
-              >
-                <span className="label">Everything found</span>
-                <span className="value num">{counts.all}</span>
-              </button>
-              <button
-                className="count"
-                aria-pressed={band === 'clears'}
-                onClick={() => setBand('clears')}
-              >
-                <span className="label">Holds every requirement</span>
-                <span className="value num">{counts.clears}</span>
-              </button>
-              <button
-                className="count"
-                aria-pressed={band === 'short'}
-                onClick={() => setBand('short')}
-              >
-                <span className="label">Falls short somewhere</span>
-                <span className="value num">{counts.short}</span>
-              </button>
+            {/* The three counts are the screen's figures, so they are set as
+                type rather than parked in tiles, and each one is the filter it
+                describes (app-screens: KPIs as type, not cards). */}
+            <div className="band">
+              <div className="figures" role="group" aria-label="Filter the shortlist by ruling">
+                {(
+                  [
+                    ['all', 'Found', counts.all],
+                    ['clears', 'Hold everything', counts.clears],
+                    ['short', 'Fall short', counts.short],
+                  ] as const
+                ).map(([key, label, value]) => (
+                  <button
+                    key={key}
+                    className="figure"
+                    aria-pressed={band === key}
+                    onClick={() => setBand(key)}
+                  >
+                    <span className="value num">{value}</span>
+                    <span className="label">{label}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="bandtools">
+                <input
+                  placeholder="Filter the shortlist"
+                  aria-label="Filter the shortlist"
+                  onChange={(e) => api.current?.setGridOption('quickFilterText', e.target.value)}
+                />
+                <button
+                  className="ghost"
+                  onClick={() => api.current?.exportDataAsCsv({ fileName: 'errand.csv' })}
+                >
+                  Export what is shown
+                </button>
+              </div>
             </div>
-
-            <div className="toolbar">
-              <input
-                placeholder="Filter the shortlist"
-                aria-label="Filter the shortlist"
-                onChange={(e) => api.current?.setGridOption('quickFilterText', e.target.value)}
-              />
-              <button
-                className="ghost"
-                onClick={() => api.current?.exportDataAsCsv({ fileName: 'errand.csv' })}
-              >
-                Export what is shown
-              </button>
-            </div>
-
-            {requirements.length > 0 && (
-              <p className="ledger-key" style={{ margin: '0 0 10px' }}>
-                <span>
-                  <MarkDot holds="yes" /> holds the requirement
-                </span>
-                <span>
-                  <MarkDot holds="unclear" /> the listing does not say
-                </span>
-                <span>
-                  <MarkDot holds="no" /> fails it
-                </span>
-                <span>Hover a mark for what the listing said.</span>
-              </p>
-            )}
 
             <div className="gridwrap">
+              {requirements.length > 0 && (
+                <div className="gridhead">
+                  <p className="ledger-key">
+                    <span>
+                      <MarkDot holds="yes" /> holds
+                    </span>
+                    <span>
+                      <MarkDot holds="unclear" /> the listing does not say
+                    </span>
+                    <span>
+                      <MarkDot holds="no" /> fails
+                    </span>
+                  </p>
+                  <span className="hint">
+                    Hover a mark for what the listing said · double-click a row for the whole ledger
+                  </span>
+                </div>
+              )}
               <div className="grid">
                 <AgGridReact<Row>
                   theme={theme}
@@ -450,7 +459,7 @@ function Primer() {
             Products come from Channel3&rsquo;s live search across its retailer network. The agent
             reads each listing and rules on it, one requirement at a time.
           </p>
-          <ul className="marklist">
+          <ul className="marks-key">
             <li>
               <MarkDot holds="yes" /> the listing says it holds
             </li>
