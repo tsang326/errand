@@ -24,18 +24,24 @@ ModuleRegistry.registerModules([AllCommunityModule]);
  */
 const theme = themeQuartz.withParams({
   fontFamily: 'Geist, Inter, system-ui, sans-serif',
-  backgroundColor: '#ffffff',
-  foregroundColor: '#0a0a0a',
-  headerBackgroundColor: '#ffffff',
-  headerTextColor: '#6b6b6b',
+  backgroundColor: '#16181b',
+  foregroundColor: '#ececee',
+  headerBackgroundColor: '#16181b',
+  headerTextColor: '#9ba0a7',
   headerFontSize: 12,
   headerFontWeight: 400,
-  borderColor: '#f0f0f0',
-  rowBorder: { style: 'solid', width: 1, color: '#f0f0f0' },
-  oddRowBackgroundColor: '#ffffff',
-  rowHoverColor: '#faf9f7',
-  selectedRowBackgroundColor: '#f4f7fc',
-  accentColor: '#1d5fbf',
+  borderColor: '#212429',
+  rowBorder: { style: 'solid', width: 1, color: '#212429' },
+  oddRowBackgroundColor: '#16181b',
+  rowHoverColor: '#1c1f23',
+  selectedRowBackgroundColor: '#16233a',
+  accentColor: '#5b9bf3',
+  checkboxUncheckedBorderColor: '#4a4e55',
+  inputBackgroundColor: '#16181b',
+  inputBorder: { style: 'solid', width: 1, color: '#3c4046' },
+  menuBackgroundColor: '#1c1f23',
+  tooltipBackgroundColor: '#22252a',
+  tooltipTextColor: '#ececee',
   cellHorizontalPadding: 16,
   wrapperBorder: false,
   headerColumnBorder: false,
@@ -193,9 +199,9 @@ export default function App() {
           <span className="wordmark">
             {/* A tick and a basket handle, drawn from what the agent does. */}
             <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-              <path d="M3 6h12l-1.3 8.2a1 1 0 0 1-1 .8H5.3a1 1 0 0 1-1-.8Z" fill="none" stroke="#0a0a0a" strokeWidth="1.4" />
-              <path d="M6 6a3 3 0 0 1 6 0" fill="none" stroke="#0a0a0a" strokeWidth="1.4" />
-              <path d="M6.6 10.3 8.3 12l3.4-3.4" fill="none" stroke="#1d5fbf" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M3 6h12l-1.3 8.2a1 1 0 0 1-1 .8H5.3a1 1 0 0 1-1-.8Z" fill="none" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M6 6a3 3 0 0 1 6 0" fill="none" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M6.6 10.3 8.3 12l3.4-3.4" fill="none" stroke="#5b9bf3" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             Errand
           </span>
