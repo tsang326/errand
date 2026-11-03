@@ -119,7 +119,9 @@ export function baseColumns(): ColDef<Row>[] {
     {
       headerName: 'Price',
       field: 'price',
-      width: 128,
+      // Wide enough for a price and the struck-through one beside it: at 128
+      // the comparison read "$107…", which looks like a bug, not a saving.
+      width: 152,
       type: 'numericColumn',
       cellRenderer: PriceCell,
       filter: 'agNumberColumnFilter',
