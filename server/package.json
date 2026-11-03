@@ -9,7 +9,8 @@
     "start": "node dist/index.js",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "CHANNEL3_API_KEY= OPENAI_API_KEY= tsx --test src/**/*.test.ts"
+    "test": "CHANNEL3_API_KEY= OPENAI_API_KEY= tsx --test --test-reporter=spec 'src/**/*.test.ts'",
+    "order": "tsx src/dev/create-sandbox-order.ts"
   },
   "dependencies": {
     "cors": "^2.8.6",

@@ -1,0 +1,159 @@
+import { randomUUID } from 'node:crypto';
+import { paypalRequest } from './client.js';
+import { toCents, centsToString, sumCents, lineTotal, type Cents } from '../money.js';
+
+export type CartLine = {
+  /** Channel3 product id, carried through so a capture can be traced to a row. */
+  productId: string;
+  title: string;
+  /** The retailer domain the offer came from. */
+  merchant: string;
+  unitPrice: number;
+  quantity: number;
+  currency: string;
+};
+
+export type CreatedOrder = {
+  id: string;
+  status: string;
+  /** Where the shopper approves the payment. Absent means PayPal changed shape. */
+  approveUrl?: string;
+  total: string;
+  currency: string;
+};
+
+export type CapturedOrder = {
+  id: string;
+  status: string;
+  captureId?: string;
+  amount?: string;
+  currency?: string;
+  payer?: string;
+};
+
+type PayPalLink = { rel?: string; href?: string };
+type PayPalOrder = {
+  id?: string;
+  status?: string;
+  links?: PayPalLink[];
+  purchase_units?: {
+    payments?: {
+      captures?: { id?: string; amount?: { value?: string; currency_code?: string } }[];
+    };
+  }[];
+  payer?: { email_address?: string };
+};
+
+/**
+ * Builds a PayPal order from a cart of Channel3 offers.
+ *
+ * PayPal validates arithmetic: the item breakdown must sum to the order total
+ * to the cent, or the whole call is a 422 naming the mismatch. So every number
+ * is summed in integer cents and formatted once, at the edge. A single currency
+ * is enforced for the same reason — purchase_unit carries one currency_code,
+ * and a cart that mixes USD and GBP offers has no valid representation here.
+ */
+export function buildOrderPayload(lines: readonly CartLine[], returnUrl: string, cancelUrl: string) {
+  if (lines.length === 0) throw new Error('an order needs at least one line');
+
+  const currencies = new Set(lines.map((l) => l.currency));
+  if (currencies.size > 1) {
+    throw new Error(
+      `one order cannot mix currencies: ${[...currencies].sort().join(', ')}`,
+    );
+  }
+  const currency = lines[0]!.currency;
+
+  const items = lines.map((l) => {
+    if (!Number.isInteger(l.quantity) || l.quantity < 1) {
+      throw new Error(`quantity for ${l.productId} must be a positive integer`);
+    }
+    return {
+      name: l.title.slice(0, 127),
+      quantity: String(l.quantity),
+      unit_amount: { currency_code: currency, value: centsToString(toCents(l.unitPrice)) },
+      // The retailer is recorded on the line so a PayPal receipt alone says
+      // which of the 25,000 merchants each item came from.
+      description: `from ${l.merchant}`.slice(0, 127),
+      sku: l.productId.slice(0, 127),
+    };
+  });
+
+  const itemTotal: Cents = sumCents(
+    lines.map((l) => lineTotal(toCents(l.unitPrice), l.quantity)),
+  );
+
+  return {
+    intent: 'CAPTURE' as const,
+    purchase_units: [
+      {
+        amount: {
+          currency_code: currency,
+          value: centsToString(itemTotal),
+          breakdown: {
+            item_total: { currency_code: currency, value: centsToString(itemTotal) },
+          },
+        },
+        items,
+      },
+    ],
+    payment_source: {
+      paypal: {
+        experience_context: {
+          user_action: 'PAY_NOW' as const,
+          return_url: returnUrl,
+          cancel_url: cancelUrl,
+        },
+      },
+    },
+  };
+}
+
+export async function createOrder(
+  lines: readonly CartLine[],
+  returnUrl: string,
+  cancelUrl: string,
+): Promise<CreatedOrder> {
+  const payload = buildOrderPayload(lines, returnUrl, cancelUrl);
+  const order = await paypalRequest<PayPalOrder>(
+    'POST',
+    '/v2/checkout/orders',
+    payload,
+    randomUUID(),
+  );
+  const approve = order.links?.find((l) => l.rel === 'payer-action' || l.rel === 'approve');
+  return {
+    id: order.id ?? '',
+    status: order.status ?? 'UNKNOWN',
+    ...(approve?.href ? { approveUrl: approve.href } : {}),
+    total: payload.purchase_units[0]!.amount.value,
+    currency: payload.purchase_units[0]!.amount.currency_code,
+  };
+}
+
+/**
+ * Captures an approved order. The caller supplies the idempotency key rather
+ * than this function minting one, because a retry must reuse the key of the
+ * attempt it is retrying — a fresh key on a retry is how a buyer gets charged
+ * twice.
+ */
+export async function captureOrder(orderId: string, requestId: string): Promise<CapturedOrder> {
+  const order = await paypalRequest<PayPalOrder>(
+    'POST',
+    `/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`,
+    {},
+    requestId,
+  );
+  const capture = order.purchase_units?.[0]?.payments?.captures?.[0];
+  return {
+    id: order.id ?? orderId,
+    status: order.status ?? 'UNKNOWN',
+    ...(capture?.id ? { captureId: capture.id } : {}),
+    ...(capture?.amount?.value ? { amount: capture.amount.value } : {}),
+    ...(capture?.amount?.currency_code ? { currency: capture.amount.currency_code } : {}),
+    ...(order.payer?.email_address ? { payer: order.payer.email_address } : {}),
+  };
+}
+
+export const getOrder = (orderId: string): Promise<PayPalOrder> =>
+  paypalRequest<PayPalOrder>('GET', `/v2/checkout/orders/${encodeURIComponent(orderId)}`);
