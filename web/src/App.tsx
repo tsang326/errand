@@ -15,7 +15,14 @@ import { baseColumns, defaultColDef, requirementColumns, MarkDot, money } from '
 import { captureOrder, checkPrices, createOrder, getErrand, getHealth, runErrand } from './api';
 import type { CapturedOrder, CreatedOrder, Errand, Health, Row, PriceCheck } from './types';
 import { Detail } from './Detail';
-import { forgetHistory, listHistory, loadErrand, saveErrand, type HistoryEntry } from './history';
+import {
+  forgetErrand,
+  forgetHistory,
+  listHistory,
+  loadErrand,
+  saveErrand,
+  type HistoryEntry,
+} from './history';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -510,17 +517,42 @@ export default function App() {
                 between a reload and paying for the same search twice. */}
             <span className="lead">Already searched</span>
             {history.map((h) => (
-              <button
-                key={h.id}
-                className={`chipbtn${errand?.id === h.id ? ' on' : ''}`}
-                onClick={() => reopen(h.id)}
-                title={`${h.sentence}\n${h.clears} of ${h.rows} held everything · ${new Date(h.at).toLocaleString()}`}
-              >
-                {h.sentence.length > 46 ? `${h.sentence.slice(0, 46)}\u2026` : h.sentence}
-                <span className="chipcount">
-                  {h.clears}/{h.rows}
-                </span>
-              </button>
+              /* Two buttons in one chip rather than a button inside a button:
+                 reopening and forgetting are different acts and the second one
+                 is not undoable, so it gets its own target and its own label. */
+              <span key={h.id} className={`chipwrap${errand?.id === h.id ? ' on' : ''}`}>
+                <button
+                  className="chipbtn"
+                  onClick={() => reopen(h.id)}
+                  title={`${h.sentence}\n${h.clears} of ${h.rows} held everything · ${new Date(h.at).toLocaleString()}`}
+                >
+                  {h.sentence.length > 42 ? `${h.sentence.slice(0, 42)}\u2026` : h.sentence}
+                  <span className="chipcount">
+                    {h.clears}/{h.rows}
+                  </span>
+                </button>
+                <button
+                  className="chipx"
+                  aria-label={`Forget: ${h.sentence}`}
+                  title="Forget this one"
+                  onClick={() => {
+                    forgetErrand(h.id);
+                    setHistory(listHistory());
+                    // Forgetting the shortlist on screen does not close it: the
+                    // shopper asked to stop keeping it, not to lose it now.
+                  }}
+                >
+                  <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
+                    <path
+                      d="M3.2 3.2 8.8 8.8M8.8 3.2 3.2 8.8"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              </span>
             ))}
             <button
               className="chipbtn chipforget"
