@@ -572,6 +572,21 @@ a.ghost {
 .offerlist a { color: var(--text); }
 .offerlist .note { color: var(--muted); font-size: var(--fs-small); }
 
+/* The price-check warning, above the pay bar. It uses the negative pill colours
+   rather than the one hue, because the hue belongs to the agent's marks and
+   this is not a mark: it is the app reporting that its own source disagrees
+   with itself. It never blocks the button — the shopper decides. */
+.stalebar {
+  background: var(--pill-negative-bg);
+  color: var(--pill-negative-ink);
+  border-bottom: 1px solid var(--rule);
+  padding: 10px var(--pad);
+  font-size: var(--fs-small);
+  line-height: 1.55;
+}
+.stalebar strong { color: var(--pill-negative-ink); font-weight: 600; }
+.stalebar .staleline { display: block; }
+
 /* Every control answers within one frame of being touched. */
 button, .chipbtn, .figure, .ghost, .count { cursor: pointer; }
 .chipbtn, .ghost, button.primary { transition: background 160ms ease, border-color 160ms ease, color 160ms ease; }

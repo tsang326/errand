@@ -1,4 +1,4 @@
-import type { CreatedOrder, Errand, Health, Row } from './types';
+import type { CreatedOrder, Errand, Health, PriceCheck, Row } from './types';
 
 /**
  * The deployment sleeps after 15 minutes idle and takes about a minute to come
@@ -75,3 +75,13 @@ export const getErrand = async (id: string): Promise<Errand> => {
     );
   return (await res.json()) as Errand;
 };
+
+/**
+ * Re-reads the ticked rows against Channel3's price-tracking history before
+ * anything is proposed to PayPal. It is a second opinion on the same index,
+ * not a second index: when the two disagree, that is the fact worth showing.
+ */
+export const checkPrices = (rows: { row: Row; quantity: number }[]): Promise<{ checks: PriceCheck[]; tracked: number }> =>
+  post('/api/price-check', {
+    lines: rows.map(({ row }) => ({ productId: row.productId, price: row.price ?? 0 })),
+  });

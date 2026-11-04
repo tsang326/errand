@@ -52,6 +52,13 @@ stockx.com, $304.17 on bestbuy.com and $422.37 on kickscrew.com. The cell says "
 3, to $422.37" and the row's sheet lists every offer with its own link, so one number never
 stands in for a 3.5x spread.
 
+And before any money is proposed, the ticked rows are re-read against Channel3's **price
+tracking** history (`GET /v0/price-tracking/history/{id}`) — a different endpoint family,
+used deliberately to check the first one rather than to trust it. The two can disagree: on
+2026-11-04 `/search` served that booster box at $120 while its own tracked history had
+stepped to $304.17 on 31 October. When they disagree, the pay bar says so, naming both
+figures and the date, and does not block the button: the shopper decides.
+
 Two other numbers are deliberately absent. There is no fit percentage. And there is no
 struck-through "was" price: Channel3's `compareAtPrice` is not a figure the product was on
 sale from — on 2026-11-04 the index offered a One Piece booster box at "$120 ~~$269~~" while

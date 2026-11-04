@@ -153,3 +153,92 @@ export function normalise(raw: unknown): Product[] {
     ];
   });
 }
+
+export type PricePoint = { date: string; price: number };
+
+export type PriceCheck = {
+  productId: string;
+  /** What /search gave us, and what the cart is about to charge. */
+  indexedPrice: number;
+  /** The last point in Channel3's own price history for this product. */
+  trackedPrice: number | null;
+  trackedOn: string | null;
+  /** The most recent move in that history, if there was one in the window. */
+  lastChange: { from: number; to: number; date: string } | null;
+  /**
+   * True when the two Channel3 endpoints disagree about the same product by
+   * more than a rounding cent. This is not a theoretical case: on 2026-11-04
+   * /search offered The Azure Sea's Seven booster box at $120 from stockx.com
+   * while /v0/price-tracking/history for the same id had moved to $304.17 on
+   * 31 October. The $120 was four days stale and nothing in the search payload
+   * said so.
+   */
+  disagrees: boolean;
+};
+
+/**
+ * Channel3's price history for one product, used to audit the price /search
+ * handed us. A separate endpoint family, deliberately: the point is to check
+ * one source against another rather than to trust either.
+ */
+export async function priceHistory(productId: string, days = 90): Promise<PricePoint[]> {
+  if (!channel3Live()) return [];
+  const res = await fetchWithDeadline(
+    `${config.channel3.historyUrl}/${encodeURIComponent(productId)}?days=${days}`,
+    { headers: { 'x-api-key': config.channel3.apiKey } },
+    DEADLINE_MS.channel3,
+    'Channel3 price history',
+  );
+  // A product nobody tracks yet is a 404, which is an answer, not a failure:
+  // no history simply means nothing to check the price against.
+  if (res.status === 404) return [];
+  if (!res.ok) {
+    throw Object.assign(new Error(`channel3 history ${res.status}`), { status: res.status });
+  }
+  const json = (await res.json()) as { history?: unknown };
+  if (!Array.isArray(json.history)) return [];
+  return json.history.flatMap((p): PricePoint[] => {
+    if (typeof p !== 'object' || p === null) return [];
+    const o = p as Record<string, unknown>;
+    const price = typeof o.price === 'number' ? o.price : Number(o.price);
+    const ts = typeof o.timestamp === 'string' ? o.timestamp : '';
+    if (!Number.isFinite(price) || !ts) return [];
+    return [{ date: ts.slice(0, 10), price }];
+  });
+}
+
+/**
+ * The verdict itself, with no I/O, so the case that matters can be tested
+ * against fixed points instead of against whatever Channel3 says today.
+ */
+export function verdictFrom(
+  productId: string,
+  indexedPrice: number,
+  points: readonly PricePoint[],
+): PriceCheck {
+  const last = points[points.length - 1];
+  let lastChange: PriceCheck['lastChange'] = null;
+  for (let i = points.length - 1; i > 0; i -= 1) {
+    const a = points[i - 1]!;
+    const b = points[i]!;
+    if (a.price !== b.price) {
+      lastChange = { from: a.price, to: b.price, date: b.date };
+      break;
+    }
+  }
+  return {
+    productId,
+    indexedPrice,
+    trackedPrice: last?.price ?? null,
+    trackedOn: last?.date ?? null,
+    lastChange,
+    // A cent of float drift between two readings of the same price is not a
+    // disagreement; anything a shopper would notice on a receipt is.
+    disagrees: last !== undefined && Math.abs(last.price - indexedPrice) > 0.01,
+  };
+}
+
+/** One product's indexed price, read against its own tracked history. */
+export async function checkPrice(productId: string, indexedPrice: number): Promise<PriceCheck> {
+  return verdictFrom(productId, indexedPrice, await priceHistory(productId));
+}

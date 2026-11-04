@@ -1,3 +1,15 @@
+export type PriceCheck = {
+  productId: string;
+  /** The price the row was shown at, which is what the cart would charge. */
+  indexedPrice: number;
+  /** The last point in Channel3's own price-tracking history for this product. */
+  trackedPrice: number | null;
+  trackedOn: string | null;
+  lastChange: { from: number; to: number; date: string } | null;
+  /** The two Channel3 endpoints disagree about this product's price. */
+  disagrees: boolean;
+};
+
 export type RowOffer = {
   retailer: string;
   url: string;
