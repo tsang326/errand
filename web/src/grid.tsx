@@ -67,14 +67,14 @@ function PriceCell({ data }: ICellRendererParams<Row>) {
   if (!data) return null;
   // A missing price is a grey dash; a real price is never dressed up.
   if (data.price === null) return <span className="dash">—</span>;
-  return (
-    <span className="price">
-      {money(data.price, data.currency)}
-      {data.compareAtPrice !== null && data.compareAtPrice > data.price && (
-        <span className="was">{money(data.compareAtPrice, data.currency)}</span>
-      )}
-    </span>
-  );
+  // No struck-through "was" price. Channel3's compareAtPrice is not a price
+  // this product was on sale from, and on some retailers it is not a price at
+  // all: this index put The Azure Sea's Seven booster box at $120 was $269,
+  // while StockX's own page that day asked $219, with $171 as the last sale
+  // and $120 as the box's printed retail. The strike-through invented a 55%
+  // discount out of two unrelated fields. A number a reader cannot check is
+  // exactly what this screen took the fit percentage out for.
+  return <span className="price">{money(data.price, data.currency)}</span>;
 }
 
 /**
