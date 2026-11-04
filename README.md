@@ -11,7 +11,7 @@ work as a ledger. You buy the goods at the shop; you pay Errand, with PayPal, fo
 > an agent buying on a shop's site for you is a thing this app refuses to be. The products
 > are bought at the retailer through the tracked link in each row, which is also where
 > Errand earns a commission. What PayPal pays for here is the agent's own work: a **pass**
-> of 25 errands for $3.00, spent one search at a time, refundable for the part you do not
+> of 15 errands for $3.00, spent one search at a time, refundable for the part you do not
 > use. Prices and stock are the product index's snapshot, not the retailer's page at the
 > moment you read it — each row links to the listing so you can check.
 
@@ -102,7 +102,10 @@ sentence ──▶ planSearch ──▶ Channel3 /v1/search ──▶ rankProduc
    between them is wrong. The device id is a signed httpOnly cookie, signed only so it cannot
    be forged into someone else's bucket — a caller who drops it falls back to being limited by
    address. It is not an anti-bot measure and is not claimed as one: any client-side identity
-   can be thrown away and asked for again. What bounds a determined caller is the global
+   can be thrown away and asked for again. A pass is outside both free ceilings and outside
+   the global hourly one as well: it was paid for and carries a fixed number of runs, so it
+   cannot be a spam vector, and a shopper who has paid should never be refused because other
+   people's free errands filled the hour. What bounds a determined caller is the global
    hourly ceiling and the model spend cap, not identity.
    What a pass buys is a wider search, not a bigger counter: a free errand reads one page of
    Channel3's index, a paid one pages through three, so about 70 products are judged against

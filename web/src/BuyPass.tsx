@@ -28,7 +28,7 @@ export function BuyPass({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose, busy]);
 
-  const runs = health?.pass?.runs ?? 25;
+  const runs = health?.pass?.runs ?? 15;
   const price = health?.pass?.price ?? '3.00';
   const currency = health?.pass?.currency ?? 'USD';
   const free = health?.rate?.freeRunsPerDay ?? 5;
