@@ -12,8 +12,8 @@ import {
   type SelectionChangedEvent,
 } from 'ag-grid-community';
 import { baseColumns, defaultColDef, requirementColumns, MarkDot, money } from './grid';
-import { checkPrices, createOrder, getErrand, getHealth, runErrand } from './api';
-import type { CreatedOrder, Errand, Health, Row, PriceCheck } from './types';
+import { captureOrder, checkPrices, createOrder, getErrand, getHealth, runErrand } from './api';
+import type { CapturedOrder, CreatedOrder, Errand, Health, Row, PriceCheck } from './types';
 import { Detail } from './Detail';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -103,6 +103,15 @@ export default function App() {
   const [band, setBand] = useState<Band>('all');
   const [selected, setSelected] = useState<Row[]>([]);
   const [order, setOrder] = useState<CreatedOrder>();
+  /**
+   * What PayPal says it took, once the shopper has come back from approving.
+   * The app used to end at the approval link: it sent people to PayPal and
+   * never asked what happened there, so nothing was ever actually charged and
+   * no screen could tell an approved order from a paid one.
+   */
+  const [receipt, setReceipt] = useState<CapturedOrder>();
+  const [cancelled, setCancelled] = useState(false);
+  const [capturing, setCapturing] = useState(false);
   const [open, setOpen] = useState<Row>();
   const api = useRef<GridApi<Row>>(null);
   // Under about 980px the grid cannot hold the agent's sentence as well as the
@@ -122,7 +131,13 @@ export default function App() {
 
   useEffect(() => {
     getHealth().then(setHealth).catch(() => setHealth(undefined));
-    const id = window.location.hash.replace(/^#/, '');
+
+    // Two ways in. Normally the errand id is the fragment, which keeps a
+    // shortlist linkable. Coming back from PayPal it is the `e` query
+    // parameter instead: PayPal appends its own token to the return URL and
+    // drops the fragment, so the id has to travel where PayPal will keep it.
+    const query = new URLSearchParams(window.location.search);
+    const id = window.location.hash.replace(/^#/, '') || (query.get('e') ?? '');
     if (id) {
       getErrand(id)
         .then((e) => {
@@ -131,6 +146,32 @@ export default function App() {
         })
         .catch((e: Error) => setError(e.message));
     }
+
+    const path = window.location.pathname;
+    // Put the app back on its own URL before anything else: the token must not
+    // survive a reload, and the shortlist is addressed by fragment everywhere
+    // else in this app.
+    const settle = () => window.history.replaceState(null, '', id ? `/#${id}` : '/');
+
+    if (path === '/cancelled') {
+      setCancelled(true);
+      settle();
+      return;
+    }
+
+    // PayPal names the order `token` on the way back. No token means somebody
+    // typed the path, and there is nothing to take money for.
+    const token = query.get('token');
+    if (path !== '/paid' || !token) return;
+
+    setCapturing(true);
+    captureOrder(token)
+      .then(setReceipt)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => {
+        setCapturing(false);
+        settle();
+      });
   }, []);
 
   /**
@@ -256,13 +297,16 @@ export default function App() {
     setBusy(true);
     setError('');
     try {
-      setOrder(await createOrder(cart));
+      // Nothing to pay for without an errand, and the button is only reachable
+      // once there is one.
+      if (!errand) return;
+      setOrder(await createOrder(cart, errand.id));
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
     }
-  }, [cart]);
+  }, [cart, errand]);
 
   return (
     <>
@@ -300,6 +344,65 @@ export default function App() {
       </header>
 
       <main className="canvas">
+        {/* The end of the errand, and the only screen that can honestly say
+            money moved. It sits above everything because a shopper coming back
+            from PayPal is asking one question, and the shortlist is not the
+            answer to it. */}
+        {capturing && (
+          <div className="receipt receipt-wait">
+            <p>Asking PayPal what it took&hellip;</p>
+          </div>
+        )}
+        {receipt && (
+          <div className="receipt">
+            <p className="rhead">
+              {receipt.status === 'COMPLETED'
+                ? 'Paid. PayPal took the money.'
+                : `PayPal returned ${receipt.status}.`}
+            </p>
+            <dl className="rgrid">
+              {receipt.amount && (
+                <div>
+                  <dt>Amount</dt>
+                  <dd className="num">
+                    {receipt.amount} {receipt.currency ?? ''}
+                  </dd>
+                </div>
+              )}
+              {receipt.captureId && (
+                <div>
+                  {/* The capture id, not the order id: the order is the
+                      intent, the capture is the money. Printed so it can be
+                      looked up in the PayPal dashboard. */}
+                  <dt>Capture</dt>
+                  <dd className="num">{receipt.captureId}</dd>
+                </div>
+              )}
+              <div>
+                <dt>Order</dt>
+                <dd className="num">{receipt.id}</dd>
+              </div>
+              {receipt.payer && (
+                <div>
+                  <dt>Paid by</dt>
+                  <dd>{receipt.payer}</dd>
+                </div>
+              )}
+            </dl>
+            <p className="rnote">
+              PayPal sandbox, so no real money moved and nothing was ordered from the
+              retailer &mdash; Channel3 has no checkout endpoint, and the agent is not
+              allowed to buy on a shop&rsquo;s site on your behalf. What this proves is the
+              payment half: the agent proposed, you approved at PayPal, and PayPal captured.
+            </p>
+          </div>
+        )}
+        {cancelled && !receipt && (
+          <div className="receipt receipt-off">
+            <p className="rhead">You cancelled at PayPal. Nothing was charged.</p>
+            <p className="rnote">The shortlist is still here; the cart is empty again.</p>
+          </div>
+        )}
         <div className="titlerow">
           <h1>
             {errand

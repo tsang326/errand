@@ -569,6 +569,40 @@ a.ghost {
   outline-offset: 2px;
 }
 
+/* The receipt. The only panel on this screen that reports a fact about the
+   world outside the app rather than a reading of the index, so it takes the
+   positive pill colours and sits above the shortlist: a shopper returning from
+   PayPal is asking one question and should not have to look for the answer. */
+.receipt {
+  background: var(--pill-positive-bg);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 16px var(--pad);
+  margin: 0 0 20px;
+}
+.receipt .rhead {
+  margin: 0 0 12px;
+  color: var(--pill-positive-ink);
+  font-size: 17px;
+  font-weight: 500;
+}
+.receipt .rgrid { display: flex; flex-wrap: wrap; gap: 8px 36px; margin: 0 0 12px; }
+.receipt .rgrid dt {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 2px;
+}
+.receipt .rgrid dd { margin: 0; color: var(--text); font-size: var(--fs-small); }
+.receipt .rgrid .num { font-family: 'Geist Mono', ui-monospace, monospace; letter-spacing: -0.02em; } /* taste-skill-ignore: an id and an amount, set like every other figure */
+.receipt .rnote { margin: 0; color: var(--muted); font-size: var(--fs-small); line-height: 1.55; max-width: 72ch; }
+/* Cancelling is not a failure and the app does not scold: same shape, no hue. */
+.receipt-off { background: var(--raised); }
+.receipt-off .rhead { color: var(--text); }
+.receipt-wait { background: var(--raised); }
+.receipt-wait p { margin: 0; color: var(--muted); font-size: var(--fs-small); }
+
 /* The price cell carries two things: the figure the row is priced at, and the
    fact that it is the cheapest of several. The qualifier is sans and grey so
    the column of figures still reads as one column of figures. */
