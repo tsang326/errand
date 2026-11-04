@@ -99,7 +99,9 @@ export async function searchPages(
   fetchPage: (o: SearchOptions) => Promise<SearchResult> = searchProducts,
 ): Promise<SearchResult> {
   const first = await fetchPage(opts);
-  if (pages <= 1 || first.origin !== 'live') return first;
+  // One page is still a page read, and the page says so on screen: without
+  // this a free errand showed no depth line at all.
+  if (pages <= 1 || first.origin !== 'live') return { ...first, pagesRead: 1 };
 
   const seen = new Set(first.products.map((p) => p.id));
   const products = [...first.products];
