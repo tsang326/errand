@@ -341,7 +341,6 @@ a.ghost {
   white-space: normal;
   line-height: 19px;
 }
-.price .was { color: var(--muted); text-decoration: line-through; margin-left: 6px; font-size: 13px; }
 .dash { color: var(--muted); }
 
 .pill {
@@ -520,6 +519,40 @@ a.ghost {
 /* taste-skill-ignore: an inset edge mark on the selected row, not a lift. */
 .ag-row-selected { box-shadow: inset 2px 0 0 var(--chart-3); } /* taste-skill-ignore: an inset edge mark on the selected row, not a lift */
 
+/* The row's own checkbox. It ships checked as an accent square with a tick,
+   which is right, but unchecked it was a 16px hollow square at --control: the
+   same glyph the ledger uses for "the listing does not say", one column to the
+   right of it and barely visible. Two different meanings cannot share a shape
+   on the one screen where every square is a claim. So: the control is rounder
+   and heavier than a mark, it lifts off the row ground, and it answers the
+   pointer. The marks stay 10px, sharp-cornered and flat. */
+.ag-checkbox-input-wrapper {
+  border-radius: 5px !important;
+  /* 3.03:1 against the --raised fill behind it, which is the floor WCAG 1.4.11
+     sets for a control's own boundary; the old #4a4e55 was 1.9:1 on the row. */
+  border-color: #6e727a !important;
+  background-color: var(--raised) !important;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+.ag-row:hover .ag-checkbox-input-wrapper:not(.ag-checked):not(.ag-indeterminate),
+.ag-checkbox-input-wrapper:not(.ag-checked):not(.ag-indeterminate):hover {
+  border-color: var(--chart-3) !important;
+}
+/* Checked and indeterminate both mean selection, so both take the one hue.
+   Indeterminate was a grey box with a grey bar through it, which is the
+   ledger's "fails" mark exactly: a judge reading the header would have seen a
+   verdict on the whole column. */
+.ag-checkbox-input-wrapper.ag-checked,
+.ag-checkbox-input-wrapper.ag-indeterminate {
+  background-color: var(--chart-3) !important;
+  border-color: var(--chart-3) !important;
+}
+.ag-checkbox-input-wrapper input:focus-visible + *,
+.ag-checkbox-input-wrapper:has(input:focus-visible) {
+  outline: 2px solid var(--chart-3);
+  outline-offset: 2px;
+}
+
 /* Every control answers within one frame of being touched. */
 button, .chipbtn, .figure, .ghost, .count { cursor: pointer; }
 .chipbtn, .ghost, button.primary { transition: background 160ms ease, border-color 160ms ease, color 160ms ease; }
@@ -552,7 +585,6 @@ button, .chipbtn, .figure, .ghost, .count { cursor: pointer; }
 .sheet-id .cartnote { margin: 0; }
 /* taste-skill-ignore: a price, set like every other price on the screen. */
 .sheet-price { margin: 8px 0 0; font-size: 20px; font-weight: 500; font-family: 'Geist Mono', ui-monospace, monospace; letter-spacing: -0.02em; } /* taste-skill-ignore: a price, set like every other price */
-.sheet-price .was { margin-left: 8px; font-size: 14px; color: var(--muted); text-decoration: line-through; }
 .sheet-close { margin-left: auto; flex: none; }
 .sheet-open { margin: 12px 0 0; }
 .sheet-why { margin: 0 0 4px; color: var(--muted); }
@@ -568,11 +600,6 @@ button, .chipbtn, .figure, .ghost, .count { cursor: pointer; }
    legend that wraps mid-item reads as a mistake. The hint is the first to go:
    it describes a pointer gesture, and the key is what has to be there. */
 @media (max-width: 1023px) {
-  /* The struck-through list price does not fit beside the real one in a 120px
-     column; it reads as "$11…", which is worse than not showing it. The row's
-     sheet still carries it. */
-  .price .was { display: none; }
-
   .gridhead .hint { display: none; }
   .gridhead .ledger-key { flex-wrap: nowrap; }
 }

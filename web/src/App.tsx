@@ -427,8 +427,14 @@ export default function App() {
                     Hover a mark for what the listing said · double-click a row for the whole ledger
                   </span>
                   <span className="asof">
-                    Price and stock are the product index&rsquo;s last reading, not the
-                    retailer&rsquo;s page right now. Open a listing to check it.
+                    {/* Checked against a retailer page on 2026-11-04: the index had a
+                        One Piece booster box at $120 while StockX asked $219 for it,
+                        $120 being the box&rsquo;s printed retail. The caveat has to say
+                        which number this is, not just that it may be stale. */}
+                    Price and stock come from the product index, not the retailer&rsquo;s
+                    page right now, and on resale listings the index can carry the
+                    printed retail price rather than today&rsquo;s ask. Open a listing
+                    before you buy.
                   </span>
                 </div>
               )}

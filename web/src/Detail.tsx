@@ -46,10 +46,8 @@ export function Detail({
               {row.retailer || 'no retailer listed'}
             </p>
             <p className="sheet-price num">
+              {/* The strike-through is gone here too; see PriceCell in grid.tsx. */}
               {row.price === null ? '—' : money(row.price, row.currency)}
-              {row.compareAtPrice !== null && row.compareAtPrice > (row.price ?? 0) && (
-                <span className="was">{money(row.compareAtPrice, row.currency)}</span>
-              )}
             </p>
             {/* Next to the price, which is what it is about, rather than up in
                 the corner competing with Close for the title's width. */}
