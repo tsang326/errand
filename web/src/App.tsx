@@ -417,14 +417,14 @@ export default function App() {
                       <MarkDot holds="yes" /> holds
                     </span>
                     <span>
-                      <MarkDot holds="unclear" /> the listing does not say
+                      <MarkDot holds="unclear" /> the index does not say
                     </span>
                     <span>
                       <MarkDot holds="no" /> fails
                     </span>
                   </p>
                   <span className="hint">
-                    Hover a mark for what the listing said · double-click a row for the whole ledger
+                    Hover a mark for what the index entry said · double-click a row for the whole ledger
                   </span>
                   <span className="asof">
                     {/* Checked against a retailer page on 2026-11-04: the index had a
@@ -528,18 +528,24 @@ function Primer() {
           <span className="n">2</span>
           <h3>Every product found gets a mark per requirement</h3>
           <p>
+            {/* "The agent reads each listing" was not true and was the screen&rsquo;s
+              strongest claim: the agent never opens a retailer page. It reads what
+              Channel3 holds about the product. Saying which fields is what lets a
+              reader decide whether a silence is the retailer&rsquo;s or ours. */}
             Products come from Channel3&rsquo;s live search across its retailer network. The agent
-            reads each listing and rules on it, one requirement at a time.
+            never opens a retailer&rsquo;s page: it reads that product&rsquo;s entry in the
+            index &mdash; title, description, materials, attributes, key features, variants
+            and the cheapest offer &mdash; and rules on it, one requirement at a time.
           </p>
           <ul className="marks-key">
             <li>
-              <MarkDot holds="yes" /> the listing says it holds
+              <MarkDot holds="yes" /> the index entry says it holds
             </li>
             <li>
-              <MarkDot holds="unclear" /> the listing does not say
+              <MarkDot holds="unclear" /> the index entry does not say
             </li>
             <li>
-              <MarkDot holds="no" /> the listing says it fails
+              <MarkDot holds="no" /> the index entry says it fails
             </li>
           </ul>
         </li>

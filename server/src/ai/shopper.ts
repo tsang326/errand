@@ -162,6 +162,12 @@ export function rankingInput(products: readonly Product[]): unknown[] {
       title: p.title,
       brand: p.brand,
       category: p.categoryPath.join(' > ') || p.category,
+      // The index's own prose about the product. Withholding it was how the
+      // screen came to say "the listing does not say" about facts the index
+      // did hold: the agent was ruling on a summary of a summary. Capped so
+      // 24 of these still fit one request.
+      description: p.description.slice(0, 400),
+      materials: p.materials,
       attributes: p.attributes,
       key_features: p.keyFeatures.slice(0, 6),
       variants: p.variants,

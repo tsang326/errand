@@ -6,7 +6,7 @@ const WORD = { yes: 'Holds', no: 'Fails', unclear: 'Not stated' } as const;
 
 /**
  * One product, with the agent's ruling on each requirement written out. The
- * grid shows the marks; this shows what the listing actually said, which is
+ * grid shows the marks; this shows what the index entry actually said, which is
  * the only way to disagree with the agent.
  */
 export function Detail({
@@ -41,10 +41,7 @@ export function Detail({
           )}
           <div className="sheet-id">
             <h3>{row.title}</h3>
-            <p className="cartnote">
-              {row.brand ? `${row.brand} · ` : ''}
-              {row.retailer || 'no retailer listed'}
-            </p>
+            <p className="cartnote">{row.retailer || 'no retailer listed'}</p>
             <p className="sheet-price num">
               {/* The strike-through is gone here too; see PriceCell in grid.tsx. */}
               {row.price === null ? '—' : money(row.price, row.currency)}
@@ -93,11 +90,18 @@ export function Detail({
           </div>
           <div className="kv">
             <dt>Stock</dt>
-            <dd style={{ margin: 0 }}>{row.inStock ? 'In stock' : 'Cannot be bought'}</dd>
+            <dd style={{ margin: 0 }}>{row.inStock ? 'In stock' : 'Out of stock'}</dd>
           </div>
           <div className="kv">
             <dt>Price and stock</dt>
             <dd style={{ margin: 0 }}>as the product index last saw them</dd>
+          </div>
+          {/* Labelled as the index's own field, because it is often wrong: this
+              index records "Uno" as the brand of a Bandai booster box. Stating
+              it here as data is honest; printing it beside the title was not. */}
+          <div className="kv">
+            <dt>Brand, per the index</dt>
+            <dd style={{ margin: 0 }}>{row.brand || 'not recorded'}</dd>
           </div>
           <div className="kv">
             <dt>Category</dt>
@@ -108,7 +112,7 @@ export function Detail({
         {row.keyFeatures.length > 0 && (
           <>
             <h4 style={{ fontSize: 14, fontWeight: 500, margin: '16px 0 6px' }}>
-              What the listing says
+              What the index records
             </h4>
             <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--muted)' }}>
               {row.keyFeatures.slice(0, 6).map((f) => (

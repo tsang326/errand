@@ -23,7 +23,10 @@ export function MarkDot({ holds }: { holds: Mark['holds'] }) {
 const MARK_WORD: Record<Mark['holds'], string> = {
   yes: 'holds',
   no: 'fails',
-  unclear: 'the listing does not say',
+  // Not "the listing": the agent never reads the retailer's page, only the
+  // index's entry for the product. The distinction decides whose silence this
+  // mark is reporting, which is the whole weight the mark carries.
+  unclear: 'the index does not say',
 };
 
 function ProductCell({ data }: ICellRendererParams<Row>) {
@@ -38,7 +41,11 @@ function ProductCell({ data }: ICellRendererParams<Row>) {
       <span className="ptitle">
         <span className="t">{data.title}</span>
         <span className="b">
-          {data.brand ? `${data.brand} ·` : ''}
+          {/* No brand here. The index put "Uno" and "Mattiel" on Bandai's One
+              Piece booster boxes, and the cell stated it as the product's maker
+              beside a title that said otherwise. It is index metadata, not an
+              identity, so it moved into the row's sheet where it is labelled as
+              such. The title and the retailer link are what a reader can check. */}
           {/* The retailer's name is the link to the listing: the shortlist
               claims these are real products, and this is how that is checked.
               The click must not reach the row, which would select it. */}
@@ -56,7 +63,9 @@ function ProductCell({ data }: ICellRendererParams<Row>) {
           ) : (
             data.retailer || 'no retailer listed'
           )}
-          {!data.inStock && <span className="pill pill-out">cannot be bought</span>}
+          {/* "cannot be bought" asserted a fact about the retailer right now.
+              The app only knows what the index last recorded. */}
+          {!data.inStock && <span className="pill pill-out">out of stock in the index</span>}
         </span>
       </span>
     </div>

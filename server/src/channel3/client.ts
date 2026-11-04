@@ -145,6 +145,7 @@ export function normalise(raw: unknown): Product[] {
         categoryPath: path.flatMap((p) =>
           typeof p === 'object' && p !== null ? [str((p as Record<string, unknown>).title)] : []),
         attributes,
+        materials: Array.isArray(r.materials) ? r.materials.map((m) => String(m)) : [],
         keyFeatures: Array.isArray(r.key_features) ? r.key_features.map((f) => String(f)) : [],
         variants: Array.isArray(r.variants) ? r.variants.map((v) => String(v)) : [],
         offers,

@@ -28,18 +28,29 @@ Instead the sentence becomes **columns**:
                               │ a second monitor  │ for the evening    │
    ───────────────────────────┼───────────────────┼────────────────────┼────────
    Minimalist Tunable LED      │     holds         │     holds          │ $36.04
-   LED Desk Lamp with Clip     │ the listing does  │     holds          │ $27.99
+   LED Desk Lamp with Clip     │ the index does    │     holds          │ $27.99
                                │ not say           │                    │
 ```
 
-Each cell is one of three marks — **holds**, **the listing does not say**, **fails** — with
-the sentence from the listing that decided it. The header is the buyer's own wording, not a
-retailer's facet. "3 of 24 hold all 2 of your requirements" is derived from the marks, so the
-number on screen and the marks under it can never disagree.
+Each cell is one of three marks — **holds**, **the index does not say**, **fails** — with
+the sentence that decided it. The header is the buyer's own wording, not a retailer's facet.
+"3 of 24 hold all 2 of your requirements" is derived from the marks, so the number on screen
+and the marks under it can never disagree.
 
-"The listing does not say" is the mark that matters. A retailer's page is silent about most
-of what people actually ask for, and an agent that collapses silence into a yes or a no is
-inventing the answer.
+The marks are about **the product index's entry**, not about the retailer's page: the agent
+reads what Channel3 holds — title, description, materials, attributes, key features, variants
+and the cheapest offer — and never opens the retailer's own page. The wording on screen says
+so, because a silence we caused and a silence the retailer caused are not the same fact.
+
+"The index does not say" is the mark that matters. Most of what people actually ask for is
+not recorded anywhere in a product listing, and an agent that collapses silence into a yes or
+a no is inventing the answer.
+
+Two other numbers are deliberately absent. There is no fit percentage. And there is no
+struck-through "was" price: Channel3's `compareAtPrice` is not a figure the product was on
+sale from — on 2026-11-04 the index offered a One Piece booster box at "$120 ~~$269~~" while
+StockX's own page asked $219, $120 being the box's printed retail — so the figure is not
+shown at all, and the caveat above the grid says which number the price is.
 
 ## How it works
 
@@ -56,7 +67,9 @@ sentence ──▶ planSearch ──▶ Channel3 /v1/search ──▶ rankProduc
    offers, prices, stock and a buy link. Without a key the server answers from bundled
    fixtures and labels every response `origin: "fixture"`, so a demo is never a grid of
    invented products that looks exactly like a grid of real ones.
-3. **`rankProducts`** reads each listing and marks it once per requirement, with a note. All
+3. **`rankProducts`** reads each product's index entry and marks it once per requirement,
+   with a note. It is given the description and materials as well as the structured fields,
+   so a mark of "the index does not say" reports Channel3's silence rather than ours. All
    24 rows are judged, not a top slice: a row nobody read would show an empty ledger and the
    counts on screen would stop adding up.
 4. **PayPal Orders v2** gets the ticked rows as line items, summed in cents, with
