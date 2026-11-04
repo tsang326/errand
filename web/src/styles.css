@@ -177,7 +177,25 @@ button.primary:disabled { background: #2b2e33; color: #9499a1; cursor: default; 
    without spending anything. */
 .recent { margin-top: 10px; }
 .recent .chipbtn { display: inline-flex; align-items: center; gap: 8px; }
-.recent .chipbtn.on { border-color: var(--chart-3); color: var(--text); }
+.recent .chipwrap { display: inline-flex; align-items: stretch; }
+.recent .chipwrap .chipbtn { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: none; }
+.recent .chipwrap.on .chipbtn,
+.recent .chipwrap.on .chipx { border-color: var(--chart-3); color: var(--text); }
+/* The forget target sits inside the chip's own frame so the pair reads as one
+   object, and is its own button so it can be reached and labelled. */
+.recent .chipx {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 9px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top-right-radius: var(--radius-control);
+  border-bottom-right-radius: var(--radius-control);
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+.recent .chipx:hover { color: var(--pill-negative-ink); background: var(--raised); }
 .recent .chipcount {
   font-family: 'Geist Mono', ui-monospace, monospace; /* taste-skill-ignore: a count, set like every other figure */
   font-size: 11px;

@@ -90,6 +90,16 @@ export function saveErrand(errand: Errand): void {
   }
 }
 
+/** Drops one shortlist and its body. Unknown ids are not an error. */
+export function forgetErrand(id: string): void {
+  try {
+    localStorage.removeItem(bodyKey(id));
+    localStorage.setItem(KEY, JSON.stringify({ index: read().index.filter((e) => e.id !== id) }));
+  } catch {
+    /* nothing to forget */
+  }
+}
+
 export function forgetHistory(): void {
   try {
     for (const e of read().index) localStorage.removeItem(bodyKey(e.id));
