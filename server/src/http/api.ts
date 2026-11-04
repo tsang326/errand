@@ -19,7 +19,7 @@ import {
 } from '../ai/shopper.js';
 import { meterState } from '../ai/meter.js';
 import { createOrder, captureOrder, type CartLine } from '../paypal/orders.js';
-import { rateLimit } from './ratelimit.js';
+import { rateLimit, rateLimitState } from './ratelimit.js';
 
 /** One row as the grid consumes it: the product, its best offer, the agent's verdict. */
 export type Row = {
@@ -135,7 +135,7 @@ export function buildApp() {
   app.use(cors());
   app.use(express.json({ limit: '256kb' }));
 
-  app.get('/api/health', (_req: Request, res: Response) => {
+  app.get('/api/health', (req: Request, res: Response) => {
     res.json({
       ok: true,
       products: channel3Live() ? 'channel3-live' : 'fixtures',
@@ -144,6 +144,11 @@ export function buildApp() {
       model: config.openai.apiKey ? config.openai.model : 'none',
       ai: meterState(),
       errandsHeld: errands.size,
+      rate: {
+        perHour: config.limits.errandPerHour,
+        seenBy: req.ip ?? 'unknown',
+        ...rateLimitState(),
+      },
     });
   });
 

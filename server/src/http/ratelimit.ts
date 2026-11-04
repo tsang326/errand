@@ -47,3 +47,15 @@ export function rateLimit(key: string, limit: number, windowMs: number, now = Da
 export function resetRateLimits(): void {
   hits.clear();
 }
+
+/**
+ * What the limiter currently holds, for /api/health. A guard whose state cannot
+ * be read is a guard you believe in rather than one you have checked: this one
+ * was in the deployed commit and silently not counting, and nothing on the
+ * instance could say so.
+ */
+export function rateLimitState(): { callers: number; busiest: number } {
+  let busiest = 0;
+  for (const w of hits.values()) if (w.count > busiest) busiest = w.count;
+  return { callers: hits.size, busiest };
+}
