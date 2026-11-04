@@ -131,7 +131,7 @@ export const defaultColDef: ColDef<Row> = {
 };
 
 /** The columns every errand has, whatever was asked for. */
-export function baseColumns(narrow = false): ColDef<Row>[] {
+export function baseColumns(narrow = false, anyHold = true): ColDef<Row>[] {
   return [
     {
       headerName: 'Product',
@@ -143,7 +143,10 @@ export function baseColumns(narrow = false): ColDef<Row>[] {
       filter: 'agTextColumnFilter',
     },
     {
-      headerName: 'Price',
+      // The qualifier does not fit the narrow price column, and truncated to
+      // "Price · as i…" it looks like a bug. On a phone the caveat row above the
+      // grid carries it instead.
+      headerName: narrow ? 'Price' : 'Price · as indexed',
       field: 'price',
       // Wide enough for a price and the struck-through one beside it: at 128
       // the comparison read "$107…", which looks like a bug, not a saving.
@@ -153,7 +156,9 @@ export function baseColumns(narrow = false): ColDef<Row>[] {
       filter: 'agNumberColumnFilter',
     },
     {
-      headerName: 'Why the agent kept it',
+      // On a screen where nothing holds, "why the agent kept it" is the app
+      // defending 23 rows it has just ruled against. Same column, honest name.
+      headerName: anyHold ? 'Why the agent kept it' : 'Where it falls short',
       field: 'why',
       flex: 2,
       minWidth: 200,

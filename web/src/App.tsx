@@ -173,7 +173,9 @@ export default function App() {
   }, [band]);
 
   const columns = useMemo<(ColDef<Row> | ColGroupDef<Row>)[]>(() => {
-    const [product, ...rest] = baseColumns(narrow).filter((c) => !(narrow && c.field === 'why'));
+    const [product, ...rest] = baseColumns(narrow, counts.clears > 0).filter(
+      (c) => !(narrow && c.field === 'why'),
+    );
     const reqs = requirementColumns(requirements, narrow);
     // The requirement columns are grouped under one line that names what they
     // are: the buyer's own words. Without it they read as three unrelated
@@ -187,7 +189,9 @@ export default function App() {
     // rest keeps this honest when a base column is added or dropped: indexing
     // by hand left an undefined in the array and AG Grid threw on build.
     return [product!, ...judged, ...rest];
-  }, [requirements, narrow]);
+    // counts.clears is a dependency, not decoration: the last column renames
+    // itself when a run holds nothing, and a stale memo would keep the old name.
+  }, [requirements, narrow, counts.clears]);
 
   const cart = useMemo(
     () => selected.filter((r) => r.inStock && r.price !== null).map((row) => ({ row, quantity: 1 })),
@@ -237,7 +241,8 @@ export default function App() {
                 </span>
                 <span className="num">
                   <span className="k">Model spend </span>
-                  <b>${health.ai.spentUsd.toFixed(3)}</b> of ${health.ai.spendBudgetUsd.toFixed(2)}
+                  <b>${health.ai.spentUsd.toFixed(3)}</b>
+                  <span className="k since"> since this instance woke</span>
                 </span>
               </>
             )}
@@ -247,7 +252,13 @@ export default function App() {
 
       <main className="canvas">
         <div className="titlerow">
-          <h1>{errand ? 'Your shortlist' : 'Say what you need'}</h1>
+          <h1>
+            {errand
+              ? counts.clears === 0
+                ? 'What the ledger found'
+                : 'Your shortlist'
+              : 'Say what you need'}
+          </h1>
           <p className="finding">
             {errand ? (
               requirements.length > 0 ? (
@@ -257,8 +268,16 @@ export default function App() {
                   </b>{' '}
                   {requirements.length === 1
                     ? 'hold the one requirement the agent found in your sentence.'
-                    : `hold all ${requirements.length} of your requirements.`}{' '}
-                  The rest each miss something, and the ledger says which.
+                    : requirements.length === 2
+                      ? 'hold both of your requirements.'
+                      : `hold all ${requirements.length} of your requirements.`}{' '}
+                  {/* The old line promised "the rest each miss something", which is
+                      false whenever every mark is silence rather than a failure, and
+                      reads as a tombstone when nothing clears. Say what the marks
+                      actually are instead. */}
+                  {counts.clears === 0
+                    ? 'Nothing here clears your sentence. The ledger says, mark by mark, what each listing answered and what it left out.'
+                    : 'The ledger says, mark by mark, what each of the rest answered and what it left out.'}
                 </>
               ) : (
                 <>
@@ -268,8 +287,9 @@ export default function App() {
               )
             ) : (
               <>
-                One sentence. The agent searches 25,000 retailers, judges every product against the
-                requirements it finds in your words, and pays with PayPal once you approve.
+                One sentence. The agent searches Channel3&rsquo;s retailer index, judges every
+                product against the requirements it finds in your words, and pays with PayPal once
+                you approve.
               </>
             )}
           </p>
@@ -374,6 +394,10 @@ export default function App() {
                   </p>
                   <span className="hint">
                     Hover a mark for what the listing said · double-click a row for the whole ledger
+                  </span>
+                  <span className="asof">
+                    Price and stock are the product index&rsquo;s last reading, not the
+                    retailer&rsquo;s page right now. Open a listing to check it.
                   </span>
                 </div>
               )}
@@ -487,7 +511,7 @@ function Primer() {
           <h3>You tick the rows and pay once</h3>
           <p>
             Nothing is bought until you approve it. The order goes to PayPal in sandbox mode, so
-            this demo spends no real money, and the model&rsquo;s own spend is capped at $3.
+            this demo spends no real money.
           </p>
         </li>
       </ol>

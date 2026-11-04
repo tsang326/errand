@@ -6,7 +6,10 @@ import type { CreatedOrder, Errand, Health, Row } from './types';
  * a request with no deadline leaves the button on "on it…" for ever if the
  * instance is restarted mid-flight, which is the one failure nobody can act on.
  */
-const DEADLINE_MS = 90_000;
+// 90 s was not enough for the worst honest case: a cold start measured at ~53 s,
+// then a Channel3 call (25 s deadline) and two model calls (30 s each). The
+// client was giving up on a request the server was still legitimately serving.
+const DEADLINE_MS = 150_000;
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   let res: Response;
@@ -21,13 +24,15 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     const e = err as Error;
     if (e.name === 'TimeoutError' || e.name === 'AbortError') {
       throw new Error(
-        'the agent did not answer within 90 seconds. This demo sleeps when idle, so try once more.',
+        'the agent did not answer within 150 seconds. This demo sleeps when idle, so try once more.',
       );
     }
     throw new Error(`could not reach the agent: ${e.message}`);
   }
-  const json = (await res.json()) as T & { error?: string };
-  if (!res.ok) throw new Error(json.error ?? `${path} failed (${res.status})`);
+  const json = (await res.json()) as T & { error?: string; detail?: string };
+  // `detail` is the sentence written for a person; `error` is the machine code.
+  // Showing "rate_limited" to a judge explains nothing.
+  if (!res.ok) throw new Error(json.detail ?? json.error ?? `${path} failed (${res.status})`);
   return json;
 }
 

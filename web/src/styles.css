@@ -252,8 +252,16 @@ button.primary:disabled { background: #2b2e33; color: #9499a1; cursor: default; 
   border-bottom: 1px solid var(--rule);
   background: var(--surface);
 }
-.gridhead .ledger-key { margin: 0; }
+/* The qualifier on the spend figure is the honest part of it, but it overran
+   the top bar on a phone. The figure shows at every width; the words go below 760. */
+@media (max-width: 760px) { .since { display: none; } }
+
+.gridhead { flex-wrap: wrap; }
+.gridhead .ledger-key { margin: 0; flex: none; }
 .gridhead .hint { margin-left: auto; color: var(--muted); font-size: var(--fs-small); }
+/* Its own row, so a long caveat never squeezes the three-mark legend onto two
+   lines: the legend is the key to every cell in the grid and has to stay read. */
+.gridhead .asof { flex-basis: 100%; color: var(--muted); font-size: var(--fs-small); }
 
 /* ---------- grid ---------- */
 .gridwrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; }

@@ -6,7 +6,6 @@ export const config = {
   port: Number(str('PORT', '8787')),
   /** Where this deployment is reachable; PayPal redirects the shopper back here. */
   publicUrl: str('ERRAND_PUBLIC_URL', 'http://localhost:5173'),
-  db: str('ERRAND_DB', './errand.db'),
 
   // Channel3 supplies the products. Without a key the server answers from the
   // bundled fixtures and says so in every response, rather than pretending to
@@ -43,6 +42,14 @@ export const config = {
     // an empty ledger, and the counts on screen then do not add up to the
     // number of rows. Judging every row costs about $0.035 instead of $0.018.
     rankLimit: Number(str('ERRAND_RANK_LIMIT', '24')),
+  },
+
+  limits: {
+    // Per-IP ceiling on /api/errand, the only route that spends money. Six runs
+    // an hour is more than a judge needs (each one takes ~20 s to read) and far
+    // less than a loop needs to be worth writing. See http/ratelimit.ts.
+    errandPerHour: Number(str('ERRAND_RATE_PER_HOUR', '6')),
+    errandWindowMs: Number(str('ERRAND_RATE_WINDOW_MS', String(60 * 60 * 1000))),
   },
 } as const;
 

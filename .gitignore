@@ -6,3 +6,6 @@ dist/
 .DS_Store
 *.tsbuildinfo
 .taste-skill/
+
+# The plan and the prize strategy are written for me, not for a judge.
+BRIEF.md

@@ -19,6 +19,7 @@ import {
 } from '../ai/shopper.js';
 import { meterState } from '../ai/meter.js';
 import { createOrder, captureOrder, type CartLine } from '../paypal/orders.js';
+import { rateLimit } from './ratelimit.js';
 
 /** One row as the grid consumes it: the product, its best offer, the agent's verdict. */
 export type Row = {
@@ -126,6 +127,11 @@ const fail = (res: Response, status: number, error: string, extra: object = {}):
 
 export function buildApp() {
   const app = express();
+  // One hop, Render's. Without this every caller arrives as the proxy's address
+  // and the per-IP limiter below becomes a global one that locks out the second
+  // judge of the day. Trusting exactly one hop reads the address Render appended
+  // rather than whatever a client puts in X-Forwarded-For itself.
+  app.set('trust proxy', 1);
   app.use(cors());
   app.use(express.json({ limit: '256kb' }));
 
@@ -142,6 +148,16 @@ export function buildApp() {
   });
 
   app.post('/api/errand', async (req: Request, res: Response) => {
+    // Before the model call, not after: the point is to not spend the money.
+    const caller = req.ip ?? 'unknown';
+    const gate = rateLimit(caller, config.limits.errandPerHour, config.limits.errandWindowMs);
+    if (!gate.allowed) {
+      return fail(res, 429, 'rate_limited', {
+        retryAfterSeconds: gate.retryAfterSeconds,
+        detail: `This demo allows ${config.limits.errandPerHour} errands an hour from one address.`,
+      });
+    }
+
     const parsed = errandBody.safeParse(req.body);
     if (!parsed.success) return fail(res, 400, 'sentence must be 3-500 characters');
     const { sentence } = parsed.data;
