@@ -53,13 +53,24 @@ const theme = themeQuartz.withParams({
 });
 
 const EXAMPLES = [
+  // First, because it is the sentence that makes the ledger earn its keep: the
+  // index carries both English and Japanese printings of the same card game, so
+  // the second requirement rules a third of the rows out, by name, on evidence
+  // a reader can check from the title. The other sentences mostly produce marks
+  // the listings are silent about.
+  'a sealed One Piece booster box under $120, English edition, not a Japanese print',
   'a gift for a six year old who loves dinosaurs, under $40, must be in stock',
   'a merino wool sweater for cold offices, size large, nothing over $120',
   'a desk lamp that will not glare on a second monitor, under $60',
 ];
 
 /** Short labels; the sentence itself goes in the box, where it can be edited. */
-const EXAMPLE_LABELS = ['A dinosaur gift under $40', 'A merino sweater for a cold office', 'A glare-free desk lamp'];
+const EXAMPLE_LABELS = [
+  'An English One Piece booster box',
+  'A dinosaur gift under $40',
+  'A merino sweater for a cold office',
+  'A glare-free desk lamp',
+];
 
 type Band = 'all' | 'clears' | 'short';
 
