@@ -12,8 +12,17 @@ import {
   type SelectionChangedEvent,
 } from 'ag-grid-community';
 import { baseColumns, defaultColDef, requirementColumns, MarkDot, money } from './grid';
-import { buyPass, capturePass, getErrand, getHealth, readPass, refundPass, runErrand } from './api';
-import type { CapturedOrder, Errand, Health, Pass, Row } from './types';
+import {
+  buyPass,
+  capturePass,
+  getErrand,
+  getHealth,
+  passStatus,
+  readPass,
+  refundPass,
+  runErrand,
+} from './api';
+import type { CapturedOrder, Errand, Health, Pass, PassStatus, Row } from './types';
 import { Detail } from './Detail';
 import { BuyPass } from './BuyPass';
 import {
@@ -123,6 +132,15 @@ export default function App() {
   const [buying, setBuying] = useState(false);
   const [refunding, setRefunding] = useState(false);
   const [refunded, setRefunded] = useState<string>();
+  /**
+   * What PayPal says, as opposed to what this app says. Fetched only when
+   * asked: it is one live call to PayPal, and its value is that the shopper
+   * (or a judge) can hold the capture id and invoice number on screen against
+   * the same payment in the PayPal dashboard.
+   */
+  const [checking, setChecking] = useState(false);
+  const [checked, setChecked] = useState<PassStatus>();
+  const [checkError, setCheckError] = useState<string>();
   /**
    * What PayPal says it took, once the shopper has come back from approving.
    * The app used to end at the approval link: it sent people to PayPal and
@@ -344,6 +362,18 @@ export default function App() {
   }, []);
 
   /** Hands back the errands the shopper never used. */
+  const check = useCallback(async (orderId: string) => {
+    setChecking(true);
+    setCheckError(undefined);
+    try {
+      setChecked(await passStatus(orderId));
+    } catch (err) {
+      setCheckError((err as Error).message);
+    } finally {
+      setChecking(false);
+    }
+  }, []);
+
   const giveBack = useCallback(async () => {
     if (!pass) return;
     setRefunding(true);
@@ -716,6 +746,14 @@ export default function App() {
                 errand{pass.left === 1 ? '' : 's'} left on your pass &middot; {pass.used} of{' '}
                 {pass.runs} used &middot; paid ${pass.amount} {pass.currency}
               </span>
+              <button
+                className="ghost"
+                onClick={() => void check(pass.orderId)}
+                disabled={checking}
+                title="Reads this payment back from PayPal"
+              >
+                {checking ? 'Asking PayPal…' : 'Check with PayPal'}
+              </button>
               {pass.left > 0 && (
                 <button className="ghost" onClick={() => void giveBack()} disabled={refunding}>
                   {refunding ? 'Refunding…' : 'Refund what is left'}
@@ -738,6 +776,37 @@ export default function App() {
             </>
           )}
         </div>
+        {(checked || checkError) && (
+          <div className="paypalsays">
+            {checkError ? (
+              <span className="says-bad">PayPal would not answer: {checkError}</span>
+            ) : (
+              <>
+                <span className="says-tag">PayPal says</span>
+                <span className="num">{checked!.paypal.status}</span>
+                {checked!.paypal.amount && (
+                  <span>
+                    {' '}
+                    &middot; {checked!.paypal.amount} {checked!.paypal.currency ?? ''}
+                  </span>
+                )}
+                {checked!.paypal.captureId && (
+                  <span>
+                    {' '}
+                    &middot; capture <span className="num">{checked!.paypal.captureId}</span>
+                    {checked!.paypal.captureStatus ? ` (${checked!.paypal.captureStatus})` : ''}
+                  </span>
+                )}
+                {checked!.paypal.invoiceId && (
+                  <span>
+                    {' '}
+                    &middot; invoice <span className="num">{checked!.paypal.invoiceId}</span>
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {offering && (

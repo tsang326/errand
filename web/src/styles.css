@@ -814,3 +814,25 @@ button, .chipbtn, .figure, .ghost, .count { cursor: pointer; }
 }
 .passbar .primary { margin-left: auto; }
 .passbar .ghost + .primary { margin-left: 0; }
+
+/* The line under the pass bar that quotes PayPal rather than this app: the
+   status, the capture and the invoice number, exactly as they appear in the
+   PayPal dashboard for the same payment. Small, because it is evidence and not
+   an announcement. */
+.paypalsays {
+  width: min(var(--column), 100% - 48px);
+  margin: 0 auto;
+  padding-bottom: 10px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  word-break: break-all;
+}
+.paypalsays .says-tag {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--chart-2);
+  margin-right: 8px;
+}
+.paypalsays .says-bad { color: var(--negative); }

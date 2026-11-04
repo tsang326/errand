@@ -96,6 +96,24 @@ export type CapturedOrder = {
   payer?: string;
 };
 
+/**
+ * What PayPal itself says about a payment, read back from PayPal on demand.
+ * The app's own numbers are easy to print; this is the version a judge can
+ * check against the PayPal dashboard, which is why it is on screen at all.
+ */
+export type PassStatus = {
+  paypal: {
+    id: string;
+    status: string;
+    invoiceId?: string;
+    captureId?: string;
+    captureStatus?: string;
+    amount?: string;
+    currency?: string;
+  };
+  pass?: Pass;
+};
+
 export type Health = {
   ok: boolean;
   products: 'channel3-live' | 'fixtures';
@@ -104,6 +122,7 @@ export type Health = {
   model: string;
   ai: { spentUsd: number; spendBudgetUsd: number; modelCalls: number };
   pass?: { runs: number; price: string; currency: string; held: number };
+  webhooks?: { configured: boolean; seen: { at: string; type: string; orderId?: string; action: string }[] };
   rate?: { perHour: number; freeRunsPerHour: number; globalPerHour: number };
 };
 

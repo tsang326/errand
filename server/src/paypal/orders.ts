@@ -37,8 +37,14 @@ type PayPalOrder = {
   status?: string;
   links?: PayPalLink[];
   purchase_units?: {
+    invoice_id?: string;
+    custom_id?: string;
     payments?: {
-      captures?: { id?: string; amount?: { value?: string; currency_code?: string } }[];
+      captures?: {
+        id?: string;
+        status?: string;
+        amount?: { value?: string; currency_code?: string };
+      }[];
     };
   }[];
   payer?: { email_address?: string };
@@ -53,7 +59,29 @@ type PayPalOrder = {
  * is enforced for the same reason — purchase_unit carries one currency_code,
  * and a cart that mixes USD and GBP offers has no valid representation here.
  */
-export function buildOrderPayload(lines: readonly CartLine[], returnUrl: string, cancelUrl: string) {
+/**
+ * What this order is, in PayPal's own books.
+ *
+ * Without these a capture in the PayPal dashboard is an amount and a date, and
+ * nothing ties it to the pass the app handed out. With them the two can be
+ * reconciled from either side, which is the difference between a payment the
+ * app claims and a payment anyone can check.
+ */
+export type OrderMarks = {
+  /** Unique per pass, and unique in the account: PayPal rejects a repeat. */
+  invoiceId?: string;
+  /** Carried through to the capture webhook, where the app reads it back. */
+  customId?: string;
+  /** What the payer sees on their statement. Max 22 characters, PayPal trims. */
+  softDescriptor?: string;
+};
+
+export function buildOrderPayload(
+  lines: readonly CartLine[],
+  returnUrl: string,
+  cancelUrl: string,
+  marks: OrderMarks = {},
+) {
   if (lines.length === 0) throw new Error('an order needs at least one line');
 
   const currencies = new Set(lines.map((l) => l.currency));
@@ -95,6 +123,11 @@ export function buildOrderPayload(lines: readonly CartLine[], returnUrl: string,
           },
         },
         items,
+        ...(marks.invoiceId ? { invoice_id: marks.invoiceId.slice(0, 127) } : {}),
+        ...(marks.customId ? { custom_id: marks.customId.slice(0, 127) } : {}),
+        ...(marks.softDescriptor
+          ? { soft_descriptor: marks.softDescriptor.slice(0, 22) }
+          : {}),
       },
     ],
     payment_source: {
@@ -113,8 +146,9 @@ export async function createOrder(
   lines: readonly CartLine[],
   returnUrl: string,
   cancelUrl: string,
+  marks: OrderMarks = {},
 ): Promise<CreatedOrder> {
-  const payload = buildOrderPayload(lines, returnUrl, cancelUrl);
+  const payload = buildOrderPayload(lines, returnUrl, cancelUrl, marks);
   const order = await paypalRequest<PayPalOrder>(
     'POST',
     '/v2/checkout/orders',
