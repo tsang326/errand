@@ -103,6 +103,15 @@ export const config = {
     // was priced above something already free, which is no offer at all. The
     // number on screen did not change; the window did.
     freeRuns: Number(str('ERRAND_FREE_RUNS_PER_DAY', '5')),
+    /**
+     * The same allowance counted per address, which has to be the looser of
+     * the two or the device bucket is pointless: an office, a campus or a
+     * mobile carrier is one address and many people, and five between all of
+     * them is wrong. Five devices' worth, so a shared address behaves like
+     * five separate visitors and no further. The global hourly ceiling is what
+     * catches an address that goes past that.
+     */
+    freeRunsPerAddress: Number(str('ERRAND_FREE_RUNS_PER_ADDRESS_DAY', '25')),
     freeWindowMs: Number(str('ERRAND_FREE_WINDOW_MS', String(24 * 60 * 60 * 1000))),
   },
 } as const;
