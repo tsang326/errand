@@ -342,7 +342,20 @@ export default function App() {
       // Nothing to pay for without an errand, and the button is only reachable
       // once there is one.
       if (!errand) return;
-      setOrder(await createOrder(cart, errand.id));
+      const created = await createOrder(cart, errand.id);
+      setOrder(created);
+      // Pressing Pay has to end up at PayPal. It used to only print the order
+      // and an approve link in a box under the grid, which on a full shortlist
+      // is a screen and a half below the button that was just pressed: the
+      // shopper saw nothing happen and the order sat at PAYER_ACTION_REQUIRED
+      // forever. Same tab, because the return URL brings them back here.
+      if (created.approveUrl) {
+        window.location.assign(created.approveUrl);
+        return;
+      }
+      // No approve link means PayPal accepted the order but offered nowhere to
+      // approve it. That is a failure, not a quiet state.
+      setError(`PayPal created order ${created.id} with no approval link (${created.status}).`);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -393,6 +406,18 @@ export default function App() {
         {capturing && (
           <div className="receipt receipt-wait">
             <p>Asking PayPal what it took&hellip;</p>
+          </div>
+        )}
+        {order && !receipt && (
+          /* Shown for the moment between the order coming back and the browser
+             leaving for PayPal, and left standing if that navigation is
+             blocked, so there is always a way forward on screen. */
+          <div className="receipt receipt-wait">
+            <p>
+              Taking you to PayPal to approve {order.total} {order.currency} (order{' '}
+              <span className="num">{order.id}</span>)&hellip;{' '}
+              {order.approveUrl && <a href={order.approveUrl}>Go there now</a>}
+            </p>
           </div>
         )}
         {receipt && (
@@ -694,22 +719,6 @@ export default function App() {
                 />
               </div>
             </div>
-
-            {order && (
-              <div className="errorbox" style={{ marginTop: 12 }}>
-                <p>
-                  PayPal order <span className="num">{order.id}</span> · {order.status} ·{' '}
-                  <span className="num">
-                    {order.total} {order.currency}
-                  </span>
-                </p>
-                {order.approveUrl && (
-                  <a href={order.approveUrl} target="_blank" rel="noopener noreferrer">
-                    Approve it in the PayPal sandbox
-                  </a>
-                )}
-              </div>
-            )}
           </section>
         )}
       </main>
