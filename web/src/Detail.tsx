@@ -82,10 +82,26 @@ export function Detail({
         )}
 
         <dl>
+          {/* A bare "Offers: 3" hid the thing worth seeing. This box was $120
+              at stockx.com and $422.37 at kickscrew.com in the same index. */}
           <div className="kv">
-            <dt>Offers</dt>
-            <dd className="num" style={{ margin: 0 }}>
-              {row.offerCount}
+            <dt>{row.offers.length === 1 ? 'Offer' : `Offers (${row.offers.length})`}</dt>
+            <dd style={{ margin: 0 }}>
+              <ul className="offerlist">
+                {row.offers.map((o) => (
+                  <li key={`${o.retailer}-${o.price}`}>
+                    <span className="num">{money(o.price, o.currency)}</span>{' '}
+                    {o.url ? (
+                      <a href={o.url} target="_blank" rel="noreferrer noopener">
+                        {o.retailer}
+                      </a>
+                    ) : (
+                      o.retailer
+                    )}
+                    {!o.inStock && <span className="note"> · out of stock in the index</span>}
+                  </li>
+                ))}
+              </ul>
             </dd>
           </div>
           <div className="kv">

@@ -1,3 +1,11 @@
+export type RowOffer = {
+  retailer: string;
+  url: string;
+  price: number;
+  currency: string;
+  inStock: boolean;
+};
+
 export type Row = {
   productId: string;
   title: string;
@@ -13,6 +21,8 @@ export type Row = {
   currency: string;
   inStock: boolean;
   offerCount: number;
+  /** Every offer the index holds, cheapest first. See RowOffer on the server. */
+  offers: RowOffer[];
   commissionRate: number;
   attributes: Record<string, string[]>;
   keyFeatures: string[];

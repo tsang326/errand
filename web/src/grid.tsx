@@ -83,7 +83,20 @@ function PriceCell({ data }: ICellRendererParams<Row>) {
   // and $120 as the box's printed retail. The strike-through invented a 55%
   // discount out of two unrelated fields. A number a reader cannot check is
   // exactly what this screen took the fit percentage out for.
-  return <span className="price">{money(data.price, data.currency)}</span>;
+  // The row is priced at the cheapest in-stock offer, and the index often
+  // holds others that are nothing like it. Saying "cheapest of 3" turns one
+  // number into a range the reader knows to go and look at.
+  const dearest = data.offers.length > 1 ? data.offers[data.offers.length - 1] : undefined;
+  return (
+    <span className="price">
+      {money(data.price, data.currency)}
+      {dearest && dearest.price > data.price && (
+        <span className="spread">
+          cheapest of {data.offers.length}, to {money(dearest.price, dearest.currency)}
+        </span>
+      )}
+    </span>
+  );
 }
 
 /**

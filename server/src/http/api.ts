@@ -41,6 +41,13 @@ export type Row = {
   currency: string;
   inStock: boolean;
   offerCount: number;
+  /**
+   * Every offer the index holds for this product, cheapest first, not just the
+   * one the row is priced at. The same sealed booster box came back at $120 on
+   * stockx.com, $304.17 on bestbuy.com and $422.37 on kickscrew.com; showing
+   * only the first made a 3.5x spread look like a price.
+   */
+  offers: RowOffer[];
   commissionRate: number;
   attributes: Record<string, string[]>;
   keyFeatures: string[];
@@ -51,6 +58,14 @@ export type Row = {
   why: string;
   /** The notes of the requirements this row fails. Derived from the marks. */
   misses: string[];
+};
+
+export type RowOffer = {
+  retailer: string;
+  url: string;
+  price: number;
+  currency: string;
+  inStock: boolean;
 };
 
 export function toRows(products: readonly Product[], verdicts: readonly Verdict[]): Row[] {
@@ -72,6 +87,15 @@ export function toRows(products: readonly Product[], verdicts: readonly Verdict[
       currency: offer?.currency ?? 'USD',
       inStock: offer?.inStock ?? false,
       offerCount: p.offers.length,
+      offers: [...p.offers]
+        .sort((a, b) => a.price - b.price)
+        .map((o) => ({
+          retailer: o.domain,
+          url: o.url,
+          price: o.price,
+          currency: o.currency,
+          inStock: o.inStock,
+        })),
       commissionRate: bestCommission(p),
       attributes: p.attributes,
       keyFeatures: p.keyFeatures,
