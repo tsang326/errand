@@ -127,8 +127,10 @@ For development, `pnpm dev` runs the API on `:8787` and Vite on `:5173`.
   would need a merchant relationship with each shop, which a demo cannot have, and Channel3
   ships no checkout endpoint. The payment is real as far as PayPal is concerned (in sandbox);
   the shipment is not.
-- **Results live in memory.** The host sleeps when idle, so a restart clears them; a shared
-  link to an old errand answers 404 and says why.
+- **Results live in memory on the server.** The host sleeps when idle, so a restart clears
+  them. Your own browser keeps a copy of the last ten shortlists, so a reload costs nothing
+  and the sentences you have already run are listed under the box; a link shared with someone
+  else answers 404 once the instance has restarted, and says why.
 - **No login, no saved carts, no history.** One sentence, one screen.
 
 ## Built with

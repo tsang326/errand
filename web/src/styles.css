@@ -172,6 +172,19 @@ button.primary:disabled { background: #2b2e33; color: #9499a1; cursor: default; 
 .ledger-key span { display: inline-flex; align-items: center; gap: 6px; }
 
 /* the three marks: a filled square holds, a hollow one is silent, a bar fails */
+/* Shortlists this browser already holds. Same chips as the examples, one line
+   below them, because they do the same job: a sentence you can get back to
+   without spending anything. */
+.recent { margin-top: 10px; }
+.recent .chipbtn { display: inline-flex; align-items: center; gap: 8px; }
+.recent .chipbtn.on { border-color: var(--chart-3); color: var(--text); }
+.recent .chipcount {
+  font-family: 'Geist Mono', ui-monospace, monospace; /* taste-skill-ignore: a count, set like every other figure */
+  font-size: 11px;
+  color: var(--muted);
+}
+.recent .chipforget { color: var(--muted); }
+
 /* The three verdicts. Each is a glyph in its own weight of ink, with no box
    around it: a box is a control on this screen and the row's checkbox is the
    only one. The hue stays on "holds", which is what the hue is reserved for;
