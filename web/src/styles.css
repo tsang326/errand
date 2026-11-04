@@ -172,17 +172,17 @@ button.primary:disabled { background: #2b2e33; color: #9499a1; cursor: default; 
 .ledger-key span { display: inline-flex; align-items: center; gap: 6px; }
 
 /* the three marks: a filled square holds, a hollow one is silent, a bar fails */
-.mk { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
-.mk-yes { background: var(--chart-3); }
-.mk-unclear { background: transparent; border: 1px solid var(--control); }
-.mk-no { background: var(--chart-2); position: relative; }
-.mk-no::after {
-  content: '';
-  position: absolute;
-  left: 1px; right: 1px; top: 4px;
-  height: 2px;
-  background: var(--surface);
-}
+/* The three verdicts. Each is a glyph in its own weight of ink, with no box
+   around it: a box is a control on this screen and the row's checkbox is the
+   only one. The hue stays on "holds", which is what the hue is reserved for;
+   "fails" borrows the ink the negative pill already uses, so the screen gains
+   no new colour; silence is the lightest grey, because a mark that reports
+   nothing should carry the least weight of the three. */
+.mk { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 14px; height: 14px; }
+.mk svg { display: block; }
+.mk-yes { color: var(--chart-3); }
+.mk-no { color: var(--pill-negative-ink); }
+.mk-unclear { color: var(--chart-2); }
 
 /* ---------- count cards that filter ---------- */
 /* ---------- the figure band: counts as type, each one its own filter ------- */
@@ -421,7 +421,7 @@ a.ghost {
 .sheet dl { margin: 12px 0; }
 .marklist { list-style: none; margin: 12px 0; padding: 0; }
 .marklist li { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--rule); align-items: flex-start; }
-.marklist .mk { margin-top: 5px; }
+.marklist .mk { margin-top: 3px; }
 .marklist .req { display: block; color: var(--text); font-weight: 500; }
 .marklist .note { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
 
