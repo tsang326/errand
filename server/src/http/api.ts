@@ -300,10 +300,20 @@ const freeGate = (caller: string, device: string) =>
         pass: { runs: passRuns(), price: passPrice(), currency: passCurrency() },
       });
     }
-    // The backstop. A caller who rotates X-Forwarded-For gets a fresh per-caller
-    // bucket every time; this one they share with everybody. It is set well above
-    // what a day of judging needs and well below what a loop costs.
-    const all = rateLimit('*all*', config.limits.errandGlobalPerHour, config.limits.errandWindowMs);
+    // The backstop against the free path. A caller who rotates X-Forwarded-For
+    // gets a fresh per-caller bucket every time; this one they share with
+    // everybody.
+    //
+    // Paid runs are outside it on purpose. The ceiling exists to bound what
+    // strangers can spend of mine, and a pass is already bounded by something
+    // better: it was paid for and it has a fixed number of runs on it, so it
+    // cannot be a spam vector however often it is called. Leaving it inside
+    // meant a shopper who had paid could be refused because other people's
+    // free errands had filled the hour, which is the one refusal this app has
+    // no right to make.
+    const all = paying
+      ? { allowed: true as const }
+      : rateLimit('*all*', config.limits.errandGlobalPerHour, config.limits.errandWindowMs);
     if (!all.allowed) {
       return fail(res, 429, 'rate_limited', {
         retryAfterSeconds: all.retryAfterSeconds,

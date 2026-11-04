@@ -779,7 +779,7 @@ export default function App() {
               <span className="cartnote">
                 {refunded
                   ? `Refunded ${refunded}. The free errands still work.`
-                  : `${freeRuns} free errands a day from this address. A pass covers ${health?.pass?.runs ?? 25} more, each reading ${paidPages}\u00d7 as much of the index.`}
+                  : `${freeRuns} free errands a day from this address. A pass covers ${health?.pass?.runs ?? 15} more, each reading ${paidPages}\u00d7 as much of the index.`}
               </span>
               <button className="primary" onClick={() => setOffering(true)} disabled={buying}>
                 Buy a pass &middot; ${health?.pass?.price ?? '3.00'}

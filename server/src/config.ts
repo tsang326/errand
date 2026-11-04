@@ -75,7 +75,7 @@ export const config = {
    *
    */
   pass: {
-    runs: Number(str('PASS_RUNS', '25')),
+    runs: Number(str('PASS_RUNS', '15')),
     price: str('PASS_PRICE', '3.00'),
     currency: str('PASS_CURRENCY', 'USD'),
   },
@@ -99,7 +99,7 @@ export const config = {
     // runs is every example sentence on the page plus two of their own.
     //
     // Per day, not per hour. Per hour it came to about a hundred and twenty
-    // free errands a day, against a pass that sells twenty-five — so the pass
+    // free errands a day, against a pass that sells fifteen — so the pass
     // was priced above something already free, which is no offer at all. The
     // number on screen did not change; the window did.
     freeRuns: Number(str('ERRAND_FREE_RUNS_PER_DAY', '5')),
