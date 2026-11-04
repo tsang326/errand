@@ -96,7 +96,13 @@ sentence ──▶ planSearch ──▶ Channel3 /v1/search ──▶ rankProduc
    nobody, so the round trip is the only part that proves the money moved. An errand that
    fails upstream is not charged for — the run is spent after the shortlist exists, not
    before — and **Payments v2 refunds** the unspent part of a pass on request, to the cent.
-   Five errands an hour are free from any address, so the thing can be tried without paying.
+   Five errands a day are free from any address, so the thing can be tried without paying.
+   What a pass buys is a wider search, not a bigger counter: a free errand reads one page of
+   Channel3's index, a paid one pages through three, so about 70 products are judged against
+   the sentence instead of 24. They are judged in batches of 24 rather than one long prompt,
+   because a long prompt is where a model starts skipping rows — and a skipped row would show
+   an empty ledger while still being counted. The shortlist says on screen which kind of
+   errand produced it and how many pages it read.
 5. **PayPal webhooks**, verified, close the hole the return URL leaves. Capture used to
    depend on the shopper's browser coming back from PayPal: a closed tab between "approve"
    and the redirect left the order `APPROVED` for ever — approved by the shopper, charged to

@@ -13,6 +13,8 @@ type SearchOptions = {
    * whose recommendation paid off. Letters, digits and `._@-`, up to 128.
    */
   userId?: string;
+  /** Channel3's `page_token`, to read the page after the one it came from. */
+  pageToken?: string;
 };
 
 /**
@@ -36,6 +38,7 @@ export async function searchProducts(opts: SearchOptions): Promise<SearchResult>
     config: { mode: config.channel3.mode },
     limit,
   };
+  if (opts.pageToken) body.page_token = opts.pageToken;
   if (opts.maxPrice !== undefined) {
     body.filters = { price: { max_price: opts.maxPrice } };
   }
@@ -71,6 +74,57 @@ export async function searchProducts(opts: SearchOptions): Promise<SearchResult>
     origin: 'live',
     query: opts.query,
     products: normalise(json.products),
+    ...(token ? { nextPageToken: token } : {}),
+  };
+}
+
+/**
+ * Several pages of one search, merged.
+ *
+ * This is what a pass buys. A free errand reads one page, which is 24 products
+ * out of an index of 25,000 — fine for "a desk lamp", thin for a sentence with
+ * three requirements in it, where most of the first page can fail on the same
+ * one. Paging widens the field the judge gets to rule on.
+ *
+ * Stops early on whatever Channel3 gives us: no page token means no more
+ * pages, and a page that returns nothing new means the token is going in
+ * circles. A failure on page two keeps page one rather than losing the search:
+ * a narrower answer beats an error.
+ */
+export async function searchPages(
+  opts: SearchOptions,
+  pages: number,
+  // Injectable so the paging rules (dedup, stop conditions, a failed page two)
+  // can be tested without a Channel3 key.
+  fetchPage: (o: SearchOptions) => Promise<SearchResult> = searchProducts,
+): Promise<SearchResult> {
+  const first = await fetchPage(opts);
+  if (pages <= 1 || first.origin !== 'live') return first;
+
+  const seen = new Set(first.products.map((p) => p.id));
+  const products = [...first.products];
+  let token = first.nextPageToken;
+  let read = 1;
+
+  for (let page = 1; page < pages && token; page += 1) {
+    let next: SearchResult;
+    try {
+      next = await fetchPage({ ...opts, pageToken: token });
+    } catch {
+      break;
+    }
+    const fresh = next.products.filter((p) => !seen.has(p.id));
+    if (fresh.length === 0) break;
+    for (const p of fresh) seen.add(p.id);
+    products.push(...fresh);
+    token = next.nextPageToken;
+    read += 1;
+  }
+
+  return {
+    ...first,
+    products,
+    pagesRead: read,
     ...(token ? { nextPageToken: token } : {}),
   };
 }

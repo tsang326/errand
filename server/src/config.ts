@@ -24,6 +24,13 @@ export const config = {
     // shopper types a sentence, not a filter tree.
     mode: str('CHANNEL3_MODE', 'agentic'),
     limit: Number(str('CHANNEL3_LIMIT', '24')),
+    /**
+     * Pages of the index a paid errand reads, against one for a free errand.
+     * This is what a pass buys: not more of the same search, a wider one.
+     * Channel3 caps a page at 30 and hands back a page token, so three pages
+     * is about seventy products judged instead of twenty-four.
+     */
+    paidPages: Number(str('CHANNEL3_PAID_PAGES', '3')),
   },
 
   paypal: {
@@ -48,11 +55,16 @@ export const config = {
     // 1-15 December on a public URL, so the thing to bound is what a stranger
     // can spend, and money is the one budget here that does not refill.
     spendBudgetUsd: Number(str('ERRAND_AI_SPEND_USD', '3.00')),
-    // How many products the ranking step is allowed to read in one call.
-    // It matches CHANNEL3_LIMIT on purpose: a row the model never read shows
-    // an empty ledger, and the counts on screen then do not add up to the
-    // number of rows. Judging every row costs about $0.035 instead of $0.018.
+    // How many products one ranking call is allowed to read. It matches
+    // CHANNEL3_LIMIT on purpose: a row the model never read shows an empty
+    // ledger, and the counts on screen then do not add up to the number of
+    // rows. A wider search is judged in several calls of this size rather
+    // than one long one, so no row goes unread.
     rankLimit: Number(str('ERRAND_RANK_LIMIT', '24')),
+    // The most products one errand will judge, however wide the search was.
+    // Without it a page-token loop could turn one sentence into an unbounded
+    // number of model calls.
+    rankMax: Number(str('ERRAND_RANK_MAX', '90')),
   },
 
   /**
@@ -61,9 +73,6 @@ export const config = {
    * chosen, which is only safe while the account is in sandbox. A pass is
    * Errand's own product, so the server is the only thing that may price it.
    *
-   * Four cents of model and index spend per errand, so twenty-five of them cost
-   * about a dollar to serve. Three dollars covers that, the Render instance, and
-   * the ones that fail and are not charged for.
    */
   pass: {
     runs: Number(str('PASS_RUNS', '25')),
@@ -87,9 +96,14 @@ export const config = {
     errandWindowMs: Number(str('ERRAND_RATE_WINDOW_MS', String(60 * 60 * 1000))),
     // Errands an address gets without paying. A judge has to be able to type a
     // sentence and see the thing work without reaching for a wallet, and five
-    // runs is every example sentence on the page plus two of their own. Past
-    // that the caller is exploring on my money, which is what the pass is for.
-    freeRunsPerHour: Number(str('ERRAND_FREE_RUNS_PER_HOUR', '5')),
+    // runs is every example sentence on the page plus two of their own.
+    //
+    // Per day, not per hour. Per hour it came to about a hundred and twenty
+    // free errands a day, against a pass that sells twenty-five — so the pass
+    // was priced above something already free, which is no offer at all. The
+    // number on screen did not change; the window did.
+    freeRuns: Number(str('ERRAND_FREE_RUNS_PER_DAY', '5')),
+    freeWindowMs: Number(str('ERRAND_FREE_WINDOW_MS', String(24 * 60 * 60 * 1000))),
   },
 } as const;
 

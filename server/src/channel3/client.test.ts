@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { searchProducts, normalise, verdictFrom } from './client.js';
+import { searchProducts, searchPages, normalise, verdictFrom } from './client.js';
 import { fixtureSearch } from './fixtures.js';
-import { cheapestOffer, bestCommission, type Product } from './types.js';
+import { cheapestOffer, bestCommission, type Product, type SearchResult } from './types.js';
 
 const liveSample = JSON.parse(
   readFileSync(new URL('../fixtures/live-search-sample.json', import.meta.url), 'utf8'),
@@ -113,4 +113,79 @@ test('a product with no tracked history never claims the price was confirmed', (
 test('cents of float drift are not a disagreement', () => {
   const check = verdictFrom('p', 19.99, [{ date: '2026-11-04', price: 19.990000000000002 }]);
   assert.equal(check.disagrees, false);
+});
+
+/**
+ * Paging is what a pass buys, so the rules around it are worth pinning: no
+ * duplicate rows, no infinite token loop, and a page that fails costs the page
+ * rather than the search.
+ */
+const page = (ids: string[], token?: string): SearchResult => ({
+  origin: 'live',
+  query: 'q',
+  products: ids.map((id) => ({
+    id,
+    title: id,
+    brand: '',
+    category: '',
+    categoryPath: [],
+    description: '',
+    image: '',
+    materials: [],
+    colors: [],
+    attributes: {},
+    keyFeatures: [],
+    variants: [],
+    offers: [],
+  })) as unknown as Product[],
+  ...(token ? { nextPageToken: token } : {}),
+});
+
+test('three pages are merged, in order, with no duplicate rows', async () => {
+  const pages = [page(['a', 'b'], 't1'), page(['b', 'c'], 't2'), page(['d'], 't3')];
+  let n = 0;
+  const r = await searchPages({ query: 'q' }, 3, async () => pages[n++]!);
+  assert.deepEqual(r.products.map((p) => p.id), ['a', 'b', 'c', 'd']);
+  assert.equal(r.pagesRead, 3);
+  assert.equal(n, 3);
+});
+
+test('a page that repeats itself stops the loop instead of spinning on a token', async () => {
+  let n = 0;
+  const r = await searchPages({ query: 'q' }, 5, async () => {
+    n += 1;
+    return page(['a', 'b'], 'same-token');
+  });
+  assert.deepEqual(r.products.map((p) => p.id), ['a', 'b']);
+  assert.equal(n, 2);
+});
+
+test('no page token means no further call, whatever the page count asked for', async () => {
+  let n = 0;
+  const r = await searchPages({ query: 'q' }, 4, async () => {
+    n += 1;
+    return page(['a']);
+  });
+  assert.equal(n, 1);
+  assert.equal(r.pagesRead, 1);
+});
+
+test('a failed second page keeps the first rather than losing the search', async () => {
+  let n = 0;
+  const r = await searchPages({ query: 'q' }, 3, async () => {
+    n += 1;
+    if (n === 1) return page(['a', 'b'], 't1');
+    throw new Error('channel3 500');
+  });
+  assert.deepEqual(r.products.map((p) => p.id), ['a', 'b']);
+  assert.equal(r.pagesRead, 1);
+});
+
+test('one page asked for is one page read, and the token is passed on', async () => {
+  const seen: (string | undefined)[] = [];
+  await searchPages({ query: 'q' }, 3, async (o) => {
+    seen.push(o.pageToken);
+    return page([`p${seen.length}`], 'tok');
+  });
+  assert.deepEqual(seen, [undefined, 'tok', 'tok']);
 });

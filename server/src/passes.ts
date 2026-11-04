@@ -9,11 +9,11 @@ import { config } from './config.js';
  * and Errand neither owns nor ships them. Capturing money for that cart bought
  * the shopper nothing.
  *
- * What Errand does own is the search. One errand is a Channel3 call plus two
- * model calls — about four cents of someone's money, and right now that someone
- * is me. So that is what PayPal is for here: a pass, bought once, spent one
- * errand at a time. The capture now corresponds to something that exists and is
- * delivered, which is the only honest basis for taking money.
+ * What Errand does own is the search: a Channel3 call and the model calls that
+ * judge what comes back. So that is what PayPal is for here — a pass, bought
+ * once, spent one errand at a time, and each paid errand reads more of the
+ * index than a free one. The capture corresponds to something that exists and
+ * is delivered, which is the only honest basis for taking money.
  *
  * Held in memory, like the errands themselves. A restart therefore loses how
  * many runs a pass has spent, and `restore` re-reads the order from PayPal and

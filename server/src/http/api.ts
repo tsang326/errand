@@ -15,7 +15,7 @@ import {
   type WebhookEvent,
 } from '../paypal/webhooks.js';
 import { config, channel3Live, paypalConfigured } from '../config.js';
-import { searchProducts, checkPrice, type PriceCheck } from '../channel3/client.js';
+import { searchProducts, searchPages, checkPrice, type PriceCheck } from '../channel3/client.js';
 import { cheapestOffer, bestCommission, type Product } from '../channel3/types.js';
 import {
   planSearch,
@@ -144,6 +144,10 @@ type Errand = {
   plan: Plan;
   origin: 'live' | 'fixture';
   note?: string;
+  /** Pages of the Channel3 index this errand read. */
+  pagesRead?: number;
+  /** True when a pass paid for it, which is why it read more than one page. */
+  deep?: boolean;
   rows: Row[];
   createdAt: string;
   /** Stored, not just returned: reopening an errand must give the same shape. */
@@ -233,7 +237,8 @@ export function buildApp() {
       webhooks: { configured: webhookConfigured(), seen: webhookNotes().slice(0, 5) },
       rate: {
         perHour: config.limits.errandPerHour,
-        freeRunsPerHour: config.limits.freeRunsPerHour,
+        freeRunsPerDay: config.limits.freeRuns,
+        paidPages: config.channel3.paidPages,
         globalPerHour: config.limits.errandGlobalPerHour,
         seenBy: req.ip ?? 'unknown',
         ...rateLimitState(),
@@ -261,11 +266,11 @@ export function buildApp() {
     }
     const gate = paying
       ? { allowed: true as const }
-      : rateLimit(caller, config.limits.freeRunsPerHour, config.limits.errandWindowMs);
+      : rateLimit(caller, config.limits.freeRuns, config.limits.freeWindowMs);
     if (!gate.allowed) {
       return fail(res, 402, 'free_runs_spent', {
         retryAfterSeconds: gate.retryAfterSeconds,
-        detail: `This address has used its ${config.limits.freeRunsPerHour} free errands this hour. A pass covers ${passRuns()} more.`,
+        detail: `This address has used its ${config.limits.freeRuns} free errands for today. A pass covers ${passRuns()} more, and reads more of the index on each one.`,
         pass: { runs: passRuns(), price: passPrice(), currency: passCurrency() },
       });
     }
@@ -285,15 +290,22 @@ export function buildApp() {
 
     try {
       const plan = await planSearch(sentence);
-      const search = await searchProducts({
-        query: plan.query,
-        ...(plan.maxPrice !== undefined ? { maxPrice: plan.maxPrice } : {}),
-        // Channel3 attributes clicks and commission per user when the search
-        // carries one. A paid shopper is identified by their pass; everyone
-        // else by their address, hashed, because the id is sent to a third
-        // party and an IP is not ours to hand over.
-        userId: passId ? `pass-${passId}` : `anon-${callerTag(caller)}`,
-      });
+      // What a pass actually buys: the same agent over a wider field. A free
+      // errand reads one page of the index, a paid one reads several, so the
+      // difference a shopper pays for is in the search rather than in a
+      // counter.
+      const search = await searchPages(
+        {
+          query: plan.query,
+          ...(plan.maxPrice !== undefined ? { maxPrice: plan.maxPrice } : {}),
+          // Channel3 attributes clicks and commission per user when the search
+          // carries one. A paid shopper is identified by their pass; everyone
+          // else by their address, hashed, because the id is sent to a third
+          // party and an IP is not ours to hand over.
+          userId: passId ? `pass-${passId}` : `anon-${callerTag(caller)}`,
+        },
+        paying ? config.channel3.paidPages : 1,
+      );
       const ranking = await rankProducts(sentence, plan, search.products);
 
       const errand: Errand = {
@@ -301,6 +313,8 @@ export function buildApp() {
         sentence,
         plan,
         origin: search.origin,
+        ...(search.pagesRead !== undefined ? { pagesRead: search.pagesRead } : {}),
+        deep: paying,
         ...(search.note ? { note: search.note } : {}),
         rows: toRows(search.products, ranking.verdicts),
         createdAt: new Date().toISOString(),
