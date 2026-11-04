@@ -14,6 +14,7 @@ import {
   webhookNotes,
   type WebhookEvent,
 } from '../paypal/webhooks.js';
+import { deviceId } from './device.js';
 import { config, channel3Live, paypalConfigured } from '../config.js';
 import { searchProducts, searchPages, checkPrice, type PriceCheck } from '../channel3/client.js';
 import { cheapestOffer, bestCommission, type Product } from '../channel3/types.js';
@@ -34,7 +35,7 @@ import {
   getOrder,
   type CartLine,
 } from '../paypal/orders.js';
-import { rateLimit, rateLimitState } from './ratelimit.js';
+import { rateLimit, rateLimitBuckets, rateLimitState } from './ratelimit.js';
 import {
   getPass,
   grantPass,
@@ -238,6 +239,7 @@ export function buildApp() {
       rate: {
         perHour: config.limits.errandPerHour,
         freeRunsPerDay: config.limits.freeRuns,
+        freeRunsPerAddressDay: config.limits.freeRunsPerAddress,
         paidPages: config.channel3.paidPages,
         globalPerHour: config.limits.errandGlobalPerHour,
         seenBy: req.ip ?? 'unknown',
@@ -245,6 +247,19 @@ export function buildApp() {
       },
     });
   });
+
+/**
+ * The free allowance: per device, and per address at five devices' worth.
+ * One call, so a refusal on either count charges neither.
+ */
+const freeGate = (caller: string, device: string) =>
+  rateLimitBuckets(
+    [
+      { key: `dev:${device}`, limit: config.limits.freeRuns },
+      { key: `ip:${caller}`, limit: config.limits.freeRunsPerAddress },
+    ],
+    config.limits.freeWindowMs,
+  );
 
   app.post('/api/errand', async (req: Request, res: Response) => {
     // Before the model call, not after: the point is to not spend the money.
@@ -264,13 +279,24 @@ export function buildApp() {
           : 'That pass is not known to this instance. Reload the page to restore it from PayPal.',
       });
     }
+    // Free errands are counted per device as well as per address. An office,
+    // a campus or a mobile carrier puts many real people behind one address,
+    // and they were sharing one allowance between them; a device of its own
+    // gets its own five. Both buckets have to have room, so neither is a way
+    // round the other — and neither is anti-bot: see http/device.ts.
+    const device = paying ? undefined : deviceId(req, res);
+    // Two counts, two ceilings. The device gets the allowance proper; the
+    // address gets five devices' worth, because the address is shared and the
+    // device is not. Counting both at the same ceiling, which is what the
+    // first version of this did, left a whole office sharing five errands —
+    // it tightened the limit instead of making it fair.
     const gate = paying
       ? { allowed: true as const }
-      : rateLimit(caller, config.limits.freeRuns, config.limits.freeWindowMs);
+      : freeGate(caller, device as string);
     if (!gate.allowed) {
       return fail(res, 402, 'free_runs_spent', {
         retryAfterSeconds: gate.retryAfterSeconds,
-        detail: `This address has used its ${config.limits.freeRuns} free errands for today. A pass covers ${passRuns()} more, and reads more of the index on each one.`,
+        detail: `The free errands for today are spent — ${config.limits.freeRuns} per device, ${config.limits.freeRunsPerAddress} per address. A pass covers ${passRuns()} more, and reads more of the index on each one.`,
         pass: { runs: passRuns(), price: passPrice(), currency: passCurrency() },
       });
     }

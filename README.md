@@ -96,7 +96,14 @@ sentence ──▶ planSearch ──▶ Channel3 /v1/search ──▶ rankProduc
    nobody, so the round trip is the only part that proves the money moved. An errand that
    fails upstream is not charged for — the run is spent after the shortlist exists, not
    before — and **Payments v2 refunds** the unspent part of a pass on request, to the cent.
-   Five errands a day are free from any address, so the thing can be tried without paying.
+   Five errands a day are free per device, and twenty-five per address, so the thing can be
+   tried without paying. Two ceilings because the address is shared and the device is not: an
+   office or a mobile carrier is hundreds of people behind one address, and one allowance
+   between them is wrong. The device id is a signed httpOnly cookie, signed only so it cannot
+   be forged into someone else's bucket — a caller who drops it falls back to being limited by
+   address. It is not an anti-bot measure and is not claimed as one: any client-side identity
+   can be thrown away and asked for again. What bounds a determined caller is the global
+   hourly ceiling and the model spend cap, not identity.
    What a pass buys is a wider search, not a bigger counter: a free errand reads one page of
    Channel3's index, a paid one pages through three, so about 70 products are judged against
    the sentence instead of 24. They are judged in batches of 24 rather than one long prompt,
