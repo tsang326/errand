@@ -127,11 +127,17 @@ const fail = (res: Response, status: number, error: string, extra: object = {}):
 
 export function buildApp() {
   const app = express();
-  // One hop, Render's. Without this every caller arrives as the proxy's address
-  // and the per-IP limiter below becomes a global one that locks out the second
-  // judge of the day. Trusting exactly one hop reads the address Render appended
-  // rather than whatever a client puts in X-Forwarded-For itself.
-  app.set('trust proxy', 1);
+  // Trust the whole forwarding chain, so req.ip is the leftmost entry of
+  // X-Forwarded-For: the caller. Trusting exactly one hop was wrong here and
+  // measured so on the live instance — /api/health reported seenBy
+  // 10.192.131.22 then 10.196.147.54 on two consecutive requests, Render's own
+  // internal mesh addresses, which rotate. The limiter was keying on those, so
+  // four requests landed in two buckets and no ceiling was ever reached.
+  //
+  // The leftmost entry is client-supplied and therefore spoofable, which is why
+  // the route also holds a global ceiling behind the per-caller one: rotating a
+  // header gets past the first and not the second.
+  app.set('trust proxy', true);
   app.use(cors());
   app.use(express.json({ limit: '256kb' }));
 
@@ -146,6 +152,7 @@ export function buildApp() {
       errandsHeld: errands.size,
       rate: {
         perHour: config.limits.errandPerHour,
+        globalPerHour: config.limits.errandGlobalPerHour,
         seenBy: req.ip ?? 'unknown',
         ...rateLimitState(),
       },
@@ -160,6 +167,16 @@ export function buildApp() {
       return fail(res, 429, 'rate_limited', {
         retryAfterSeconds: gate.retryAfterSeconds,
         detail: `This demo allows ${config.limits.errandPerHour} errands an hour from one address.`,
+      });
+    }
+    // The backstop. A caller who rotates X-Forwarded-For gets a fresh per-caller
+    // bucket every time; this one they share with everybody. It is set well above
+    // what a day of judging needs and well below what a loop costs.
+    const all = rateLimit('*all*', config.limits.errandGlobalPerHour, config.limits.errandWindowMs);
+    if (!all.allowed) {
+      return fail(res, 429, 'rate_limited', {
+        retryAfterSeconds: all.retryAfterSeconds,
+        detail: 'This demo has run its hourly budget of errands. Try again shortly.',
       });
     }
 

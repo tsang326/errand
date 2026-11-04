@@ -37,3 +37,33 @@ test('the window reopens, so a blocked caller is not blocked for ever', () => {
   assert.equal(rateLimit('a', 6, 1000, now).allowed, false);
   assert.equal(rateLimit('a', 6, 1000, now + 1001).allowed, true);
 });
+
+/**
+ * Keying on the wrong thing is how the first version of this failed in
+ * production while passing every test: it counted Render's internal mesh
+ * address, which rotates per request. These two pin the behaviour that matters
+ * — a rotating key must not buy unlimited calls once the shared ceiling exists.
+ */
+test('a caller who rotates their key still meets the global ceiling', () => {
+  resetRateLimits();
+  const now = 1_000_000;
+  let allowed = 0;
+  for (let i = 0; i < 50; i += 1) {
+    const perCaller = rateLimit(`rotating-${i}`, 6, 3600_000, now);
+    const global = rateLimit('*all*', 40, 3600_000, now);
+    if (perCaller.allowed && global.allowed) allowed += 1;
+  }
+  assert.equal(allowed, 40, 'the shared bucket, not the rotating one, is the wall');
+});
+
+test('the global ceiling leaves room for a normal day of judging', () => {
+  resetRateLimits();
+  const now = 1_000_000;
+  // three judges, three runs each: nobody should be turned away
+  for (const who of ['judge-a', 'judge-b', 'judge-c']) {
+    for (let i = 0; i < 3; i += 1) {
+      assert.equal(rateLimit(who, 6, 3600_000, now).allowed, true);
+      assert.equal(rateLimit('*all*', 40, 3600_000, now).allowed, true);
+    }
+  }
+});

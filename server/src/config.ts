@@ -49,6 +49,10 @@ export const config = {
     // an hour is more than a judge needs (each one takes ~20 s to read) and far
     // less than a loop needs to be worth writing. See http/ratelimit.ts.
     errandPerHour: Number(str('ERRAND_RATE_PER_HOUR', '6')),
+    // Shared by everyone, so a caller who rotates X-Forwarded-For to dodge the
+    // per-caller ceiling still meets a wall. Judging is 1-15 December and a
+    // judge needs two or three runs, so 40 an hour is generous for real use.
+    errandGlobalPerHour: Number(str('ERRAND_RATE_GLOBAL_PER_HOUR', '40')),
     errandWindowMs: Number(str('ERRAND_RATE_WINDOW_MS', String(60 * 60 * 1000))),
   },
 } as const;
