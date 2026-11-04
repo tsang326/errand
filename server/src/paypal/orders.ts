@@ -73,7 +73,7 @@ export function buildOrderPayload(lines: readonly CartLine[], returnUrl: string,
       quantity: String(l.quantity),
       unit_amount: { currency_code: currency, value: centsToString(toCents(l.unitPrice)) },
       // The retailer is recorded on the line so a PayPal receipt alone says
-      // which of the 25,000 merchants each item came from.
+      // which merchant in Channel3's index each item came from.
       description: `from ${l.merchant}`.slice(0, 127),
       sku: l.productId.slice(0, 127),
     };

@@ -33,6 +33,12 @@ export type Product = {
   categoryPath: string[];
   /** Channel3's own extracted attributes, e.g. 'recommended-age-group'. */
   attributes: Record<string, string[]>;
+  /** e.g. ['plastic']. Channel3 returns it and the app used to throw it away,
+      which made the agent write "material not specified" about rows whose
+      material the index knew. `colors` is deliberately not carried: it comes
+      back as hex swatches with coverage percentages, which a model would have
+      to guess a colour name from. */
+  materials: string[];
   keyFeatures: string[];
   variants: string[];
   offers: Offer[];

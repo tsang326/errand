@@ -17,6 +17,7 @@ const CATALOGUE: Product[] = [
     category: 'Puzzles',
     categoryPath: ['Toys & Games', 'Puzzles'],
     attributes: { 'recommended-age-group': ['3-5 years'] },
+    materials: [],
     keyFeatures: ['Large pieces for small hands'],
     variants: ['one size'],
     offers: [
@@ -34,6 +35,7 @@ const CATALOGUE: Product[] = [
     category: 'Night Lights',
     categoryPath: ['Home', 'Lighting', 'Night Lights'],
     attributes: {},
+    materials: [],
     keyFeatures: ['Rechargeable'],
     variants: ['green', 'grey'],
     offers: [
@@ -51,6 +53,7 @@ const CATALOGUE: Product[] = [
     category: 'Childrens Books',
     categoryPath: ['Books', 'Childrens Books'],
     attributes: {},
+    materials: [],
     keyFeatures: ['Hardcover'],
     variants: ['hardcover'],
     offers: [
@@ -67,6 +70,7 @@ const CATALOGUE: Product[] = [
     category: 'Sweaters',
     categoryPath: ['Clothing', 'Sweaters'],
     attributes: { 'material': ['Merino wool'] },
+    materials: [],
     keyFeatures: ['Machine washable'],
     variants: ['S', 'M', 'L', 'XL'],
     offers: [
@@ -84,6 +88,7 @@ const CATALOGUE: Product[] = [
     category: 'Running Shoes',
     categoryPath: ['Shoes', 'Running Shoes'],
     attributes: {},
+    materials: [],
     keyFeatures: ['Neutral support'],
     variants: ['8', '9', '10', '11'],
     offers: [
@@ -101,6 +106,7 @@ const CATALOGUE: Product[] = [
     category: 'Desk Lamps',
     categoryPath: ['Home', 'Lighting', 'Desk Lamps'],
     attributes: {},
+    materials: [],
     keyFeatures: ['Three brightness levels'],
     variants: ['black', 'white'],
     offers: [

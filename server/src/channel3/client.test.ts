@@ -68,7 +68,7 @@ test('a row missing every optional field still maps', () => {
 test('cheapest offer skips out-of-stock listings', () => {
   const p: Product = {
     id: 'p', title: 't', description: '', brand: 'b', imageUrl: '', imageAlt: '',
-    category: '', categoryPath: [], attributes: {}, keyFeatures: [], variants: [],
+    category: '', categoryPath: [], attributes: {}, materials: [], keyFeatures: [], variants: [],
     offers: [
       { url: '', domain: 'cheap-but-gone.example', price: 10, currency: 'USD', inStock: false, condition: 'new' },
       { url: '', domain: 'available.example', price: 20, currency: 'USD', inStock: true, condition: 'new', commissionRate: 0.05 },
