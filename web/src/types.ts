@@ -80,6 +80,20 @@ export type CreatedOrder = {
   currency: string;
 };
 
+/**
+ * What PayPal recorded when the money actually moved. The order the app creates
+ * is only an intent: until this comes back with a capture id, nothing has been
+ * paid, and a screen that stops at the approval page cannot tell the two apart.
+ */
+export type CapturedOrder = {
+  id: string;
+  status: string;
+  captureId?: string;
+  amount?: string;
+  currency?: string;
+  payer?: string;
+};
+
 export type Health = {
   ok: boolean;
   products: 'channel3-live' | 'fixtures';

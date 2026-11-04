@@ -86,7 +86,10 @@ sentence ──▶ planSearch ──▶ Channel3 /v1/search ──▶ rankProduc
    24 rows are judged, not a top slice: a row nobody read would show an empty ledger and the
    counts on screen would stop adding up.
 4. **PayPal Orders v2** gets the ticked rows as line items, summed in cents, with
-   `PAY_NOW` so the shopper lands on payment rather than a review page.
+   `PAY_NOW` so the shopper lands on payment rather than a review page. PayPal sends the
+   shopper back with the order token, the app captures it, and the screen shows the capture
+   id and what was taken. An order that is created and never captured charges nobody, so
+   the round trip is the only part of this that proves the money moved.
 
 Every outbound call has a deadline (Channel3 25s, OpenAI 30s, PayPal 20s) and fails as a 504
 with a reason. On a free hosting plan the common failure is not a wrong answer, it is a
@@ -120,8 +123,10 @@ For development, `pnpm dev` runs the API on `:8787` and Vite on `:5173`.
 
 ## What is deliberately missing
 
-- **No order reaches the retailer.** Errand creates the PayPal order; fulfilment would need a
-  merchant relationship with each shop, which a demo cannot have.
+- **No order reaches the retailer.** Errand creates and captures the PayPal order; fulfilment
+  would need a merchant relationship with each shop, which a demo cannot have, and Channel3
+  ships no checkout endpoint. The payment is real as far as PayPal is concerned (in sandbox);
+  the shipment is not.
 - **Results live in memory.** The host sleeps when idle, so a restart clears them; a shared
   link to an old errand answers 404 and says why.
 - **No login, no saved carts, no history.** One sentence, one screen.
