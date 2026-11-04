@@ -8,8 +8,8 @@ import type { Health } from './types';
  * thing to charge for: Channel3 has no checkout, the retailer sells the goods,
  * and Errand neither holds them nor ships them. The search is what Errand
  * makes, so the search is what it sells. Everything here is a fact about that:
- * the price, how many errands it covers, what one costs to serve, and that the
- * unused part comes back on request.
+ * the price, how many errands it covers, how much of the index a paid errand
+ * reads, and that the unused part comes back on request.
  */
 export function BuyPass({
   health,
@@ -31,6 +31,9 @@ export function BuyPass({
   const runs = health?.pass?.runs ?? 25;
   const price = health?.pass?.price ?? '3.00';
   const currency = health?.pass?.currency ?? 'USD';
+  const free = health?.rate?.freeRunsPerDay ?? 5;
+  const pages = health?.rate?.paidPages ?? 3;
+  const perPage = 24;
 
   return (
     <div className="bill-back" onClick={() => !busy && onClose()} role="presentation">
@@ -49,9 +52,11 @@ export function BuyPass({
         <ul className="bill-lines">
           <li>
             <span className="bl-title">
-              {runs} errands
+              {runs} errands, each one wider
               <span className="bl-sub">
-                One errand is a Channel3 search and two model calls &middot; about $0.04 to serve
+                A paid errand reads {pages} pages of Channel3&rsquo;s index &mdash; about{' '}
+                {pages * perPage} products judged against your sentence, instead of the {perPage} a
+                free errand reads
               </span>
             </span>
             <span className="bl-price num">
@@ -73,8 +78,10 @@ export function BuyPass({
           buys on a shop&rsquo;s site for you, which is a choice, not a missing feature.
         </p>
         <p className="bill-note">
-          A run that fails is not charged for, and the errands you have not spent can be refunded
-          to the same PayPal account whenever you ask. Sandbox mode, so no real money moves.
+          {free} errands a day are free from any address, so you can see the thing work before
+          paying. A run that fails is not charged for, and the errands you have not spent can be
+          refunded to the same PayPal account whenever you ask. Sandbox mode, so no real money
+          moves.
         </p>
 
         <div className="bill-acts">

@@ -152,7 +152,8 @@ export default function App() {
   const [capturing, setCapturing] = useState(false);
   const [open, setOpen] = useState<Row>();
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const freeRuns = health?.rate?.freeRunsPerHour ?? 5;
+  const freeRuns = health?.rate?.freeRunsPerDay ?? 5;
+  const paidPages = health?.rate?.paidPages ?? 3;
   const api = useRef<GridApi<Row>>(null);
   // Under about 980px the grid cannot hold the agent's sentence as well as the
   // ledger; it scrolled sideways and cut the prose mid-letter. The sentence
@@ -526,6 +527,16 @@ export default function App() {
               </>
             )}
           </p>
+          {/* What the pass bought, on the page that it bought it for. A paid
+              errand reads several pages of the index, so the shopper can see
+              the width they paid for rather than take it on trust. */}
+          {errand && errand.pagesRead !== undefined && (
+            <p className="depth">
+              {errand.deep
+                ? `Paid errand \u00b7 ${errand.pagesRead} pages of Channel3\u2019s index read, ${counts.all} products judged.`
+                : `Free errand \u00b7 one page of the index, ${counts.all} products judged. A pass reads more on each run.`}
+            </p>
+          )}
         </div>
 
         <section className="ask">
@@ -768,7 +779,7 @@ export default function App() {
               <span className="cartnote">
                 {refunded
                   ? `Refunded ${refunded}. The free errands still work.`
-                  : `${freeRuns} free errands an hour from this address. A pass covers ${health?.pass?.runs ?? 25} more.`}
+                  : `${freeRuns} free errands a day from this address. A pass covers ${health?.pass?.runs ?? 25} more, each reading ${paidPages}\u00d7 as much of the index.`}
               </span>
               <button className="primary" onClick={() => setOffering(true)} disabled={buying}>
                 Buy a pass &middot; ${health?.pass?.price ?? '3.00'}

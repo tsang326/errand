@@ -179,29 +179,71 @@ export function rankingInput(products: readonly Product[]): unknown[] {
   });
 }
 
-export async function rankProducts(
+/** One ranking call over at most `rankLimit` products. */
+async function rankBatch(
   sentence: string,
   plan: Plan,
-  products: readonly Product[],
-): Promise<Ranking> {
-  const subject = products.slice(0, config.ai.rankLimit);
-  if (!hasModel() || subject.length === 0) {
-    return { verdicts: [], source: 'passthrough', costUsd: 0 };
-  }
+  batch: readonly Product[],
+): Promise<{ verdicts: Verdict[]; costUsd: number }> {
   const { text, cost } = await chat(
     SYSTEM_RANK,
     JSON.stringify({
       request: sentence,
       // Numbered, because the marks come back keyed by this number.
       requirements: plan.requirements.map((text, i) => ({ number: i, text })),
-      products: rankingInput(subject),
+      products: rankingInput(batch),
     }),
   );
-  return {
-    verdicts: parseVerdicts(text, subject, plan.requirements.length),
-    source: 'model',
-    costUsd: cost,
-  };
+  return { verdicts: parseVerdicts(text, batch, plan.requirements.length), costUsd: cost };
+}
+
+/**
+ * Judges every product the search returned, in batches of `rankLimit`.
+ *
+ * A paid errand reads several pages of the index, which is more products than
+ * belong in one prompt: a long prompt is where a model starts skipping rows,
+ * and a skipped row shows an empty ledger on screen while still being counted.
+ * So the field is split and the batches run together, and `rankMax` bounds how
+ * many calls one sentence can ever cause.
+ *
+ * A batch that fails does not take the others down. Its rows come back unjudged
+ * rather than wrong, which the grid already has a state for.
+ */
+export async function rankProducts(
+  sentence: string,
+  plan: Plan,
+  products: readonly Product[],
+): Promise<Ranking> {
+  const subject = products.slice(0, config.ai.rankMax);
+  if (!hasModel() || subject.length === 0) {
+    return { verdicts: [], source: 'passthrough', costUsd: 0 };
+  }
+  const size = Math.max(1, config.ai.rankLimit);
+  const batches: Product[][] = [];
+  for (let i = 0; i < subject.length; i += size) batches.push(subject.slice(i, i + size));
+
+  const results = await Promise.allSettled(
+    batches.map((batch) => rankBatch(sentence, plan, batch)),
+  );
+
+  const verdicts: Verdict[] = [];
+  let costUsd = 0;
+  let failed = 0;
+  for (const r of results) {
+    if (r.status === 'fulfilled') {
+      verdicts.push(...r.value.verdicts);
+      costUsd += r.value.costUsd;
+    } else {
+      failed += 1;
+    }
+  }
+  // Every batch failing is the same thing as having no model: say so rather
+  // than reporting a model answer that is entirely empty.
+  if (failed === batches.length) {
+    const first = results[0];
+    if (first && first.status === 'rejected') throw first.reason;
+  }
+  return { verdicts, source: 'model', costUsd };
 }
 
 /**

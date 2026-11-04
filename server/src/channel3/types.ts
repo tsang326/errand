@@ -54,6 +54,8 @@ export type SearchResult = {
   products: Product[];
   /** Channel3's cursor, when there are further pages. */
   nextPageToken?: string;
+  /** Pages of the index this result was built from. One, unless paid. */
+  pagesRead?: number;
   /** Why a fixture answer was given, when it was. */
   note?: string;
 };

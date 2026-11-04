@@ -836,3 +836,12 @@ button, .chipbtn, .figure, .ghost, .count { cursor: pointer; }
   margin-right: 8px;
 }
 .paypalsays .says-bad { color: var(--negative); }
+
+/* One line under the finding: how wide the search that produced this shortlist
+   actually was. It is the difference a pass pays for, so it is stated on the
+   page rather than left to the receipt. */
+.depth {
+  margin: 6px 0 0;
+  font-size: var(--fs-small);
+  color: var(--chart-2);
+}

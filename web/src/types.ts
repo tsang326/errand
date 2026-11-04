@@ -66,6 +66,10 @@ export type Errand = {
   plan: Plan;
   origin: 'live' | 'fixture';
   note?: string;
+  /** Pages of the Channel3 index this errand read. */
+  pagesRead?: number;
+  /** True when a pass paid for it, which is why it read more than one page. */
+  deep?: boolean;
   rows: Row[];
   createdAt: string;
   /** Absent on an errand stored by a build older than the one that saved it. */
@@ -123,7 +127,12 @@ export type Health = {
   ai: { spentUsd: number; spendBudgetUsd: number; modelCalls: number };
   pass?: { runs: number; price: string; currency: string; held: number };
   webhooks?: { configured: boolean; seen: { at: string; type: string; orderId?: string; action: string }[] };
-  rate?: { perHour: number; freeRunsPerHour: number; globalPerHour: number };
+  rate?: {
+    perHour: number;
+    freeRunsPerDay: number;
+    paidPages: number;
+    globalPerHour: number;
+  };
 };
 
 /**
