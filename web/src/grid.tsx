@@ -16,8 +16,53 @@ export const money = (value: number, currency: string): string =>
  * fails. The one hue on the screen sits here, on the agent's ruling, which is
  * what the screen exists to show.
  */
+/**
+ * One verdict, drawn as a glyph rather than a box.
+ *
+ * The marks used to be 10px squares: a filled one for holds, a hollow one for
+ * silence. Which meant the ledger's three verdicts were boxes, the row's
+ * selection control was a box, and a reader looking at the requirement columns
+ * saw what they took for a row of checkboxes with nothing ticked. That is the
+ * whole screen misread in one glance, and the fault was the shape.
+ *
+ * A tick, a cross and a dash are annotations: nothing about them invites a
+ * click, so the one box left on the screen is the one you can actually tick.
+ */
 export function MarkDot({ holds }: { holds: Mark['holds'] }) {
-  return <span className={`mk mk-${holds}`} />;
+  return (
+    <span className={`mk mk-${holds}`} aria-hidden="true">
+      <svg viewBox="0 0 14 14" width="14" height="14">
+        {holds === 'yes' && (
+          <path
+            d="M2.5 7.4 5.6 10.4 11.5 3.9"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+        {holds === 'no' && (
+          <path
+            d="M3.6 3.6 10.4 10.4M10.4 3.6 3.6 10.4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.9"
+            strokeLinecap="round"
+          />
+        )}
+        {holds === 'unclear' && (
+          <path
+            d="M4 7h6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
+        )}
+      </svg>
+    </span>
+  );
 }
 
 const MARK_WORD: Record<Mark['holds'], string> = {
