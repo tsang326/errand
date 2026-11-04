@@ -46,6 +46,12 @@ so, because a silence we caused and a silence the retailer caused are not the sa
 not recorded anywhere in a product listing, and an agent that collapses silence into a yes or
 a no is inventing the answer.
 
+The price on a row is the cheapest in-stock offer the index holds, and the index often
+holds others that are nothing like it: the same sealed booster box came back at $120 on
+stockx.com, $304.17 on bestbuy.com and $422.37 on kickscrew.com. The cell says "cheapest of
+3, to $422.37" and the row's sheet lists every offer with its own link, so one number never
+stands in for a 3.5x spread.
+
 Two other numbers are deliberately absent. There is no fit percentage. And there is no
 struck-through "was" price: Channel3's `compareAtPrice` is not a figure the product was on
 sale from — on 2026-11-04 the index offered a One Piece booster box at "$120 ~~$269~~" while
