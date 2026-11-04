@@ -97,6 +97,19 @@ sentence ──▶ planSearch ──▶ Channel3 /v1/search ──▶ rankProduc
    fails upstream is not charged for — the run is spent after the shortlist exists, not
    before — and **Payments v2 refunds** the unspent part of a pass on request, to the cent.
    Five errands an hour are free from any address, so the thing can be tried without paying.
+5. **PayPal webhooks**, verified, close the hole the return URL leaves. Capture used to
+   depend on the shopper's browser coming back from PayPal: a closed tab between "approve"
+   and the redirect left the order `APPROVED` for ever — approved by the shopper, charged to
+   nobody, with no pass. Now `CHECKOUT.ORDER.APPROVED` makes the server capture,
+   `PAYMENT.CAPTURE.COMPLETED` grants the pass, and `PAYMENT.CAPTURE.REFUNDED` voids it,
+   whatever the browser did. Every notification is checked with
+   `/v1/notifications/verify-webhook-signature` against `PAYPAL_WEBHOOK_ID` first: an
+   unverified body is a stranger's POST claiming somebody paid, so it is answered 400 and
+   dropped, and with no webhook id configured the route accepts nothing at all. Each pass
+   order also carries an `invoice_id`, a `custom_id` and the soft descriptor `ERRAND PASS`,
+   so a payment can be reconciled from either side — and "Check with PayPal" on screen reads
+   the order back from PayPal and shows the status, capture id and invoice number the PayPal
+   dashboard shows for the same payment.
 
 Every outbound call has a deadline (Channel3 25s, OpenAI 30s, PayPal 20s) and fails as a 504
 with a reason. On a free hosting plan the common failure is not a wrong answer, it is a

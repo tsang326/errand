@@ -5,6 +5,15 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
+import {
+  verifyWebhook,
+  readWebhookHeaders,
+  webhookConfigured,
+  orderIdOf,
+  noteWebhook,
+  webhookNotes,
+  type WebhookEvent,
+} from '../paypal/webhooks.js';
 import { config, channel3Live, paypalConfigured } from '../config.js';
 import { searchProducts, checkPrice, type PriceCheck } from '../channel3/client.js';
 import { cheapestOffer, bestCommission, type Product } from '../channel3/types.js';
@@ -29,6 +38,7 @@ import { rateLimit, rateLimitState } from './ratelimit.js';
 import {
   getPass,
   grantPass,
+  findPassByCapture,
   hasRunLeft,
   markRefunded,
   passCurrency,
@@ -220,6 +230,7 @@ export function buildApp() {
       ai: meterState(),
       errandsHeld: errands.size,
       pass: { runs: passRuns(), price: passPrice(), currency: passCurrency(), held: passesHeld() },
+      webhooks: { configured: webhookConfigured(), seen: webhookNotes().slice(0, 5) },
       rate: {
         perHour: config.limits.errandPerHour,
         freeRunsPerHour: config.limits.freeRunsPerHour,
@@ -402,11 +413,21 @@ export function buildApp() {
       quantity: 1,
       currency: passCurrency(),
     };
+    // What ties this payment to this pass in PayPal's own records. The
+    // reference is minted here, before the order exists, because PayPal will
+    // only accept an invoice number once — which is also what stops the same
+    // pass being invoiced twice.
+    const ref = `pass-${randomUUID()}`;
     try {
       const order = await createOrder(
         [line],
         parsed.data.returnUrl ?? `${config.publicUrl}/paid`,
         parsed.data.cancelUrl ?? `${config.publicUrl}/cancelled`,
+        {
+          invoiceId: ref,
+          customId: ref,
+          softDescriptor: 'ERRAND PASS',
+        },
       );
       return res.json(order);
     } catch (err) {
@@ -485,6 +506,116 @@ export function buildApp() {
     } catch (err) {
       return fail(res, 502, (err as Error).message.slice(0, 400));
     }
+  });
+
+  /**
+   * What PayPal says about this order, read live from PayPal rather than from
+   * our own memory. The point is that the app's claim is checkable: the
+   * shopper sees the status, the capture id and the invoice number that the
+   * PayPal dashboard shows for the same payment.
+   */
+  app.get('/api/pass/:id/status', async (req: Request, res: Response) => {
+    if (!paypalConfigured()) return fail(res, 503, 'PayPal is not configured on this deployment');
+    const orderId = String(req.params.id ?? '');
+    try {
+      const order = await getOrder(orderId);
+      const unit = order.purchase_units?.[0];
+      const capture = unit?.payments?.captures?.[0];
+      const held = getPass(orderId);
+      return res.json({
+        paypal: {
+          id: order.id ?? orderId,
+          status: order.status ?? 'UNKNOWN',
+          ...(unit?.invoice_id ? { invoiceId: unit.invoice_id } : {}),
+          ...(capture?.id ? { captureId: capture.id } : {}),
+          ...(capture?.status ? { captureStatus: capture.status } : {}),
+          ...(capture?.amount?.value ? { amount: capture.amount.value } : {}),
+          ...(capture?.amount?.currency_code ? { currency: capture.amount.currency_code } : {}),
+        },
+        ...(held ? { pass: passView(held) } : {}),
+      });
+    } catch (err) {
+      return fail(res, 502, (err as Error).message.slice(0, 400));
+    }
+  });
+
+  /**
+   * PayPal telling the server what happened, instead of the server finding out
+   * only because the shopper's browser came back.
+   *
+   * That difference is the whole reason this route exists. Capture used to
+   * happen on the return URL alone, so a closed tab between "approve" and
+   * "back to Errand" left the order APPROVED forever: the shopper had
+   * approved a payment, nobody was charged, and no pass existed. Here PayPal
+   * reports the approval directly and the server captures it, so the outcome
+   * no longer depends on a browser surviving a redirect.
+   *
+   * Nothing is trusted before the signature is verified. An unverified body is
+   * a stranger's POST claiming somebody paid, and acting on it would hand out
+   * passes for free; so an unverified event is answered 400 and dropped.
+   */
+  app.post('/api/paypal/webhook', async (req: Request, res: Response) => {
+    if (!webhookConfigured()) {
+      return fail(res, 503, 'PAYPAL_WEBHOOK_ID is not set on this deployment');
+    }
+    const headers = readWebhookHeaders(req.headers as Record<string, string | undefined>);
+    if (!headers) return fail(res, 400, 'missing PayPal signature headers');
+
+    const event = req.body as WebhookEvent;
+    // The parsed body is sent on for verification, not a re-serialised string
+    // of our own: PayPal rebuilds the signed payload from these fields, and
+    // the only thing we must not do is edit them.
+    const genuine = await verifyWebhook(headers, event);
+    if (!genuine) return fail(res, 400, 'PayPal did not verify that signature');
+
+    const type = event.event_type ?? 'UNKNOWN';
+    const orderId = orderIdOf(event);
+    let action = 'ignored';
+
+    try {
+      if (type === 'CHECKOUT.ORDER.APPROVED' && orderId) {
+        if (getPass(orderId)) {
+          action = 'already captured';
+        } else {
+          const captured = await captureOrder(orderId, `capture-${orderId}`);
+          action = `captured ${captured.status}`;
+          if (captured.status === 'COMPLETED') {
+            grantPass(captured);
+            action = 'captured and pass granted';
+          }
+        }
+      } else if (type === 'PAYMENT.CAPTURE.COMPLETED' && orderId) {
+        const capture = event.resource;
+        grantPass({
+          id: orderId,
+          status: 'COMPLETED',
+          ...(capture?.id ? { captureId: capture.id } : {}),
+          ...(capture?.amount?.value ? { amount: capture.amount.value } : {}),
+          ...(capture?.amount?.currency_code ? { currency: capture.amount.currency_code } : {}),
+        });
+        action = 'pass granted';
+      } else if (type === 'PAYMENT.CAPTURE.REFUNDED' || type === 'PAYMENT.CAPTURE.REVERSED') {
+        // A refund can start on PayPal's side, not ours, and then the capture
+        // is all the notification names.
+        const captureId = event.resource?.id;
+        const pass =
+          (orderId ? getPass(orderId) : undefined) ??
+          (captureId ? findPassByCapture(captureId) : undefined);
+        if (pass) {
+          markRefunded(pass.orderId);
+          action = 'pass marked refunded';
+        }
+      }
+    } catch (err) {
+      // PayPal retries a webhook it could not deliver. A 502 here is therefore
+      // the useful answer: it asks for that retry instead of swallowing a
+      // capture that failed once.
+      noteWebhook({ at: new Date().toISOString(), type, ...(orderId ? { orderId } : {}), action: 'failed' });
+      return fail(res, 502, (err as Error).message.slice(0, 400));
+    }
+
+    noteWebhook({ at: new Date().toISOString(), type, ...(orderId ? { orderId } : {}), action });
+    return res.json({ ok: true, type, action });
   });
 
   // One service serves both halves, which is what the deployment target gives

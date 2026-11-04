@@ -30,6 +30,12 @@ export const config = {
     clientId: str('PAYPAL_CLIENT_ID'),
     clientSecret: str('PAYPAL_CLIENT_SECRET'),
     sandbox: str('PAYPAL_SANDBOX', 'true') !== 'false',
+    /**
+     * The webhook PayPal posts to. Without it an incoming notification cannot
+     * be verified, and an unverified notification is just a stranger's POST
+     * claiming somebody paid — so with no id set the route refuses everything.
+     */
+    webhookId: str('PAYPAL_WEBHOOK_ID'),
   },
 
   openai: {

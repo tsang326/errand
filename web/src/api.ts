@@ -1,4 +1,13 @@
-import type { CapturedOrder, CreatedOrder, Errand, Health, Pass, PriceCheck, Row } from './types';
+import type {
+  CapturedOrder,
+  CreatedOrder,
+  Errand,
+  Health,
+  Pass,
+  PassStatus,
+  PriceCheck,
+  Row,
+} from './types';
 
 /**
  * The deployment sleeps after 15 minutes idle and takes about a minute to come
@@ -59,6 +68,13 @@ export const readPass = async (orderId: string): Promise<Pass | undefined> => {
   const res = await fetch(`/api/pass/${encodeURIComponent(orderId)}`);
   if (!res.ok) return undefined;
   return ((await res.json()) as { pass: Pass }).pass;
+};
+
+/** Asks PayPal, not this server, what became of the payment. */
+export const passStatus = async (orderId: string): Promise<PassStatus> => {
+  const res = await fetch(`/api/pass/${encodeURIComponent(orderId)}/status`);
+  if (!res.ok) throw new Error(`PayPal would not answer (${res.status})`);
+  return (await res.json()) as PassStatus;
 };
 
 /** Hands back the runs the shopper did not use. */

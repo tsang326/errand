@@ -94,6 +94,17 @@ export function hasRunLeft(orderId: string): boolean {
   return !!pass && !pass.refundedAt && pass.used < pass.runs;
 }
 
+/**
+ * The pass a capture belongs to. A refund notification names the capture, not
+ * the order, so this is how an out-of-band refund finds the pass it voids.
+ */
+export function findPassByCapture(captureId: string): Pass | undefined {
+  for (const pass of passes.values()) {
+    if (pass.captureId === captureId) return pass;
+  }
+  return undefined;
+}
+
 /** Marks a pass refunded so its remaining runs cannot be spent afterwards. */
 export function markRefunded(orderId: string): void {
   const pass = passes.get(orderId);
