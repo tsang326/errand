@@ -15,6 +15,7 @@ import { baseColumns, defaultColDef, requirementColumns, MarkDot, money } from '
 import { captureOrder, checkPrices, createOrder, getErrand, getHealth, runErrand } from './api';
 import type { CapturedOrder, CreatedOrder, Errand, Health, Row, PriceCheck } from './types';
 import { Detail } from './Detail';
+import { forgetHistory, listHistory, loadErrand, saveErrand, type HistoryEntry } from './history';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -113,6 +114,7 @@ export default function App() {
   const [cancelled, setCancelled] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [open, setOpen] = useState<Row>();
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const api = useRef<GridApi<Row>>(null);
   // Under about 980px the grid cannot hold the agent's sentence as well as the
   // ledger; it scrolled sideways and cut the prose mid-letter. The sentence
@@ -137,14 +139,31 @@ export default function App() {
     // parameter instead: PayPal appends its own token to the return URL and
     // drops the fragment, so the id has to travel where PayPal will keep it.
     const query = new URLSearchParams(window.location.search);
-    const id = window.location.hash.replace(/^#/, '') || (query.get('e') ?? '');
+    const past = listHistory();
+    setHistory(past);
+
+    // No id anywhere means a plain reload or a fresh tab. Reopening the last
+    // shortlist is what the shopper expected the page to still be showing, and
+    // it costs nothing: re-running the same sentence spends a Channel3 search
+    // and two model calls to arrive at the answer already in this browser.
+    const id = window.location.hash.replace(/^#/, '') || (query.get('e') ?? '') || (past[0]?.id ?? '');
     if (id) {
-      getErrand(id)
-        .then((e) => {
-          setErrand(e);
-          setSentence(e.sentence);
-        })
-        .catch((e: Error) => setError(e.message));
+      const mine = loadErrand(id);
+      if (mine) {
+        setErrand(mine);
+        setSentence(mine.sentence);
+        if (!window.location.hash) window.history.replaceState(null, '', `/#${id}`);
+      } else {
+        // Not this browser's: a shared link. The server may still hold it.
+        getErrand(id)
+          .then((e) => {
+            setErrand(e);
+            setSentence(e.sentence);
+            saveErrand(e);
+            setHistory(listHistory());
+          })
+          .catch((e: Error) => setError(e.message));
+      }
     }
 
     const path = window.location.pathname;
@@ -195,6 +214,8 @@ export default function App() {
     try {
       const fresh = await runErrand(sentence);
       setErrand(fresh);
+      saveErrand(fresh);
+      setHistory(listHistory());
       window.location.hash = fresh.id;
     } catch (e) {
       setError((e as Error).message);
@@ -292,6 +313,20 @@ export default function App() {
   }, [ids]);
 
   const stale = useMemo(() => priceChecks.filter((c) => c.disagrees), [priceChecks]);
+
+  /**
+   * Reopens a shortlist this browser already has. No network, no credit: the
+   * whole point of keeping it.
+   */
+  const reopen = useCallback((id: string) => {
+    const e = loadErrand(id);
+    if (!e) return;
+    setErrand(e);
+    setSentence(e.sentence);
+    setBand('all');
+    setError('');
+    window.location.hash = id;
+  }, []);
 
   const pay = useCallback(async () => {
     setBusy(true);
@@ -468,6 +503,37 @@ export default function App() {
             </button>
           ))}
         </div>
+        {history.length > 0 && (
+          <div className="examples recent">
+            {/* The server forgets an errand when the free instance sleeps or a
+                deploy replaces it, so this list is the only thing standing
+                between a reload and paying for the same search twice. */}
+            <span className="lead">Already searched</span>
+            {history.map((h) => (
+              <button
+                key={h.id}
+                className={`chipbtn${errand?.id === h.id ? ' on' : ''}`}
+                onClick={() => reopen(h.id)}
+                title={`${h.sentence}\n${h.clears} of ${h.rows} held everything · ${new Date(h.at).toLocaleString()}`}
+              >
+                {h.sentence.length > 46 ? `${h.sentence.slice(0, 46)}\u2026` : h.sentence}
+                <span className="chipcount">
+                  {h.clears}/{h.rows}
+                </span>
+              </button>
+            ))}
+            <button
+              className="chipbtn chipforget"
+              onClick={() => {
+                forgetHistory();
+                setHistory([]);
+              }}
+              title="Remove every saved shortlist from this browser"
+            >
+              Forget these
+            </button>
+          </div>
+        )}
         {busy && waited > 12 && (
           <p className="waking">
             Still going. This demo runs on a free instance that sleeps when idle, so the first search
