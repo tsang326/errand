@@ -722,3 +722,66 @@ button, .chipbtn, .figure, .ghost, .count { cursor: pointer; }
   .gridhead .hint { display: none; }
   .gridhead .ledger-key { flex-wrap: nowrap; }
 }
+
+/* The bill shown before leaving for PayPal. Centred rather than a side sheet:
+   the row sheet slides in from the right because it belongs to a row, and this
+   belongs to the whole cart and is the one thing on screen while it is open. */
+.bill-back {
+  position: fixed; inset: 0; z-index: 30;
+  background: rgba(0,0,0,.62);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  animation: back-in 160ms ease;
+}
+.bill {
+  width: min(560px, 100%);
+  max-height: 86vh; overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 22px var(--pad);
+  animation: bill-in 180ms cubic-bezier(.22,.61,.36,1);
+}
+@keyframes bill-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.bill-top { margin: 0 0 16px; }
+.bill-top h3 { margin: 0 0 4px; font-size: 18px; font-weight: 600; }
+.bill-top .cartnote { margin: 0; }
+.bill-lines { list-style: none; margin: 0; padding: 0; }
+.bill-lines li {
+  display: flex; gap: 16px; justify-content: space-between; align-items: baseline;
+  padding: 10px 0; border-bottom: 1px solid var(--rule);
+}
+.bl-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bl-sub { color: var(--muted); font-size: var(--fs-small); }
+.bl-price { flex: none; font-family: 'Geist Mono', ui-monospace, monospace; letter-spacing: -0.02em; } /* taste-skill-ignore: a price, set like every other price */
+.bill-total {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 14px 0 0; font-size: 20px; font-weight: 500;
+}
+.bill-total .num { font-family: 'Geist Mono', ui-monospace, monospace; letter-spacing: -0.02em; } /* taste-skill-ignore: the total, set like every other price */
+.bill-warn { margin: 12px 0 0; color: var(--pill-negative-ink); font-size: var(--fs-small); line-height: 1.55; }
+.bill-note { margin: 14px 0 0; color: var(--muted); font-size: var(--fs-small); line-height: 1.55; }
+.bill-acts { display: flex; gap: 10px; justify-content: flex-end; margin: 20px 0 0; flex-wrap: wrap; }
+/* The quantity stepper on a bill line. Three small controls, sized for a
+   thumb, that must not compete with the line's price for attention. */
+.bl-qty { display: inline-flex; align-items: center; gap: 2px; flex: none; margin-left: auto; }
+.bl-qty .qbtn {
+  width: 26px; height: 26px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text); background: var(--raised);
+  border: 1px solid var(--border); border-radius: var(--radius-control);
+  cursor: pointer; font-size: 15px;
+}
+.bl-qty .qbtn:hover:not(:disabled) { border-color: var(--chart-3); }
+.bl-qty .qbtn:disabled { color: var(--muted); cursor: default; }
+.bl-qty .qnum {
+  width: 46px; height: 26px; text-align: center;
+  color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-control);
+  font-family: 'Geist Mono', ui-monospace, monospace; /* taste-skill-ignore: a figure, set like every other figure */
+  -moz-appearance: textfield;
+}
+.bl-qty .qnum::-webkit-outer-spin-button,
+.bl-qty .qnum::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.bill-lines li { gap: 12px; }
+.bl-price { min-width: 84px; text-align: right; }

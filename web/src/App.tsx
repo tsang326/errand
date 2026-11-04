@@ -15,6 +15,7 @@ import { baseColumns, defaultColDef, requirementColumns, MarkDot, money } from '
 import { captureOrder, checkPrices, createOrder, getErrand, getHealth, runErrand } from './api';
 import type { CapturedOrder, CreatedOrder, Errand, Health, Row, PriceCheck } from './types';
 import { Detail } from './Detail';
+import { Confirm } from './Confirm';
 import {
   forgetErrand,
   forgetHistory,
@@ -220,6 +221,7 @@ export default function App() {
     setBand('all');
     try {
       const fresh = await runErrand(sentence);
+      setQuantities({});
       setErrand(fresh);
       saveErrand(fresh);
       setHistory(listHistory());
@@ -278,10 +280,25 @@ export default function App() {
     // itself when a run holds nothing, and a stale memo would keep the old name.
   }, [requirements, narrow, counts.clears]);
 
+  /**
+   * How many of each ticked row. The index says a product is in stock; it does
+   * not say how many are on the shelf, so the ceiling here is PayPal's line
+   * limit (20) rather than a count we would be inventing. Untouched rows stay
+   * at one and never enter this map.
+   */
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const setQuantity = useCallback((productId: string, n: number) => {
+    setQuantities((q) => ({ ...q, [productId]: Math.min(20, Math.max(1, n)) }));
+  }, []);
+
   const cart = useMemo(
-    () => selected.filter((r) => r.inStock && r.price !== null).map((row) => ({ row, quantity: 1 })),
-    [selected],
+    () =>
+      selected
+        .filter((r) => r.inStock && r.price !== null)
+        .map((row) => ({ row, quantity: quantities[row.productId] ?? 1 })),
+    [selected, quantities],
   );
+  const units = useMemo(() => cart.reduce((n, { quantity }) => n + quantity, 0), [cart]);
   const cartTotal = useMemo(
     () => cart.reduce((sum, { row, quantity }) => sum + Math.round(row.price! * 100) * quantity, 0) / 100,
     [cart],
@@ -332,8 +349,12 @@ export default function App() {
     setSentence(e.sentence);
     setBand('all');
     setError('');
+    setQuantities({});
     window.location.hash = id;
   }, []);
+
+  /** The bill stands between Pay and PayPal; nothing is created until Confirm. */
+  const [confirming, setConfirming] = useState(false);
 
   const pay = useCallback(async () => {
     setBusy(true);
@@ -358,6 +379,7 @@ export default function App() {
       setError(`PayPal created order ${created.id} with no approval link (${created.status}).`);
     } catch (e) {
       setError((e as Error).message);
+      setConfirming(false);
     } finally {
       setBusy(false);
     }
@@ -753,15 +775,34 @@ export default function App() {
             <span className="cartnote">
               {cart.length === 0
                 ? 'Tick the rows you want.'
-                : `${cart.length} item${cart.length > 1 ? 's' : ''} selected`}
+                : `${cart.length} item${cart.length > 1 ? 's' : ''} selected${
+                    units > cart.length ? ` · ${units} units` : ''
+                  }`}
               {unbuyable > 0 &&
                 ` · ${unbuyable} selected row${unbuyable > 1 ? 's' : ''} out of stock in the index`}
             </span>
-            <button className="primary" onClick={pay} disabled={busy || cart.length === 0}>
+            <button
+              className="primary"
+              onClick={() => setConfirming(true)}
+              disabled={busy || cart.length === 0}
+            >
               Pay with PayPal
             </button>
           </div>
         </div>
+      )}
+
+      {confirming && (
+        <Confirm
+          cart={cart}
+          total={cartTotal}
+          onQuantity={setQuantity}
+          stale={stale}
+          unbuyable={unbuyable}
+          busy={busy}
+          onConfirm={() => void pay()}
+          onClose={() => setConfirming(false)}
+        />
       )}
 
       {open && <Detail row={open} requirements={requirements} onClose={() => setOpen(undefined)} />}
