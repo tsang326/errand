@@ -160,6 +160,11 @@ test('a page that repeats itself stops the loop instead of spinning on a token',
   assert.equal(n, 2);
 });
 
+test('one page asked for still reports one page read, so the page can say so', async () => {
+  const r = await searchPages({ query: 'q' }, 1, async () => page(['a'], 'tok'));
+  assert.equal(r.pagesRead, 1);
+});
+
 test('no page token means no further call, whatever the page count asked for', async () => {
   let n = 0;
   const r = await searchPages({ query: 'q' }, 4, async () => {
