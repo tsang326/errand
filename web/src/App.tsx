@@ -12,10 +12,10 @@ import {
   type SelectionChangedEvent,
 } from 'ag-grid-community';
 import { baseColumns, defaultColDef, requirementColumns, MarkDot, money } from './grid';
-import { captureOrder, checkPrices, createOrder, getErrand, getHealth, runErrand } from './api';
-import type { CapturedOrder, CreatedOrder, Errand, Health, Row, PriceCheck } from './types';
+import { buyPass, capturePass, getErrand, getHealth, readPass, refundPass, runErrand } from './api';
+import type { CapturedOrder, Errand, Health, Pass, Row } from './types';
 import { Detail } from './Detail';
-import { Confirm } from './Confirm';
+import { BuyPass } from './BuyPass';
 import {
   forgetErrand,
   forgetHistory,
@@ -100,6 +100,9 @@ function useNarrow(px: number): boolean {
   return narrow;
 }
 
+/** Where this browser keeps the order id that proves it bought a pass. */
+const PASS_KEY = 'errand.pass.v1';
+
 export default function App() {
   // The desk-lamp sentence by default: it is the one the primer's worked
   // example takes apart, so the box and the figure say the same thing.
@@ -110,8 +113,16 @@ export default function App() {
   const [waited, setWaited] = useState(0);
   const [error, setError] = useState('');
   const [band, setBand] = useState<Band>('all');
-  const [selected, setSelected] = useState<Row[]>([]);
-  const [order, setOrder] = useState<CreatedOrder>();
+  /**
+   * The pass this browser holds, and the order id that proves it. The id is the
+   * receipt: the server keeps passes in memory, so after a restart it asks
+   * PayPal about this order and hands the pass back rather than leaving someone
+   * who paid with nothing.
+   */
+  const [pass, setPass] = useState<Pass>();
+  const [buying, setBuying] = useState(false);
+  const [refunding, setRefunding] = useState(false);
+  const [refunded, setRefunded] = useState<string>();
   /**
    * What PayPal says it took, once the shopper has come back from approving.
    * The app used to end at the approval link: it sent people to PayPal and
@@ -123,6 +134,7 @@ export default function App() {
   const [capturing, setCapturing] = useState(false);
   const [open, setOpen] = useState<Row>();
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const freeRuns = health?.rate?.freeRunsPerHour ?? 5;
   const api = useRef<GridApi<Row>>(null);
   // Under about 980px the grid cannot hold the agent's sentence as well as the
   // ledger; it scrolled sideways and cut the prose mid-letter. The sentence
@@ -174,6 +186,16 @@ export default function App() {
       }
     }
 
+    // A pass outlives the page and the server's memory: the id is kept here, and
+    // the server re-reads the order from PayPal when it has forgotten it.
+    const held = localStorage.getItem(PASS_KEY);
+    if (held) {
+      void readPass(held).then((p) => {
+        if (p && !p.refundedAt) setPass(p);
+        else localStorage.removeItem(PASS_KEY);
+      });
+    }
+
     const path = window.location.pathname;
     // Put the app back on its own URL before anything else: the token must not
     // survive a reload, and the shortlist is addressed by fragment everywhere
@@ -192,8 +214,12 @@ export default function App() {
     if (path !== '/paid' || !token) return;
 
     setCapturing(true);
-    captureOrder(token)
-      .then(setReceipt)
+    capturePass(token)
+      .then(({ captured, pass: bought }) => {
+        setPass(bought);
+        localStorage.setItem(PASS_KEY, bought.orderId);
+        if (captured) setReceipt(captured);
+      })
       .catch((e: Error) => setError(e.message))
       .finally(() => {
         setCapturing(false);
@@ -216,12 +242,10 @@ export default function App() {
   const send = useCallback(async () => {
     setBusy(true);
     setError('');
-    setOrder(undefined);
-    setSelected([]);
     setBand('all');
     try {
-      const fresh = await runErrand(sentence);
-      setQuantities({});
+      const fresh = await runErrand(sentence, pass && pass.left > 0 ? pass.orderId : undefined);
+      if (fresh.pass) setPass(fresh.pass);
       setErrand(fresh);
       saveErrand(fresh);
       setHistory(listHistory());
@@ -280,63 +304,6 @@ export default function App() {
     // itself when a run holds nothing, and a stale memo would keep the old name.
   }, [requirements, narrow, counts.clears]);
 
-  /**
-   * How many of each ticked row. The index says a product is in stock; it does
-   * not say how many are on the shelf, so the ceiling here is PayPal's line
-   * limit (20) rather than a count we would be inventing. Untouched rows stay
-   * at one and never enter this map.
-   */
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const setQuantity = useCallback((productId: string, n: number) => {
-    setQuantities((q) => ({ ...q, [productId]: Math.min(20, Math.max(1, n)) }));
-  }, []);
-
-  const cart = useMemo(
-    () =>
-      selected
-        .filter((r) => r.inStock && r.price !== null)
-        .map((row) => ({ row, quantity: quantities[row.productId] ?? 1 })),
-    [selected, quantities],
-  );
-  const units = useMemo(() => cart.reduce((n, { quantity }) => n + quantity, 0), [cart]);
-  const cartTotal = useMemo(
-    () => cart.reduce((sum, { row, quantity }) => sum + Math.round(row.price! * 100) * quantity, 0) / 100,
-    [cart],
-  );
-  const unbuyable = selected.length - cart.length;
-
-  /**
-   * The ticked rows, re-read against Channel3's price-tracking history. The
-   * index can disagree with itself: /search offered a booster box at $120 that
-   * its own history had moved to $304.17 four days earlier. The shopper is the
-   * one who would have paid the difference, so the check runs here, before the
-   * PayPal button is pressed, and not as a sentence in a caveat.
-   */
-  const [priceChecks, setPriceChecks] = useState<PriceCheck[]>([]);
-  const ids = useMemo(() => cart.map(({ row }) => row.productId).join(','), [cart]);
-  useEffect(() => {
-    if (cart.length === 0) {
-      setPriceChecks([]);
-      return;
-    }
-    let live = true;
-    void checkPrices(cart)
-      .then((r) => {
-        // Ticking fast must not let an older answer land on a newer cart.
-        if (live) setPriceChecks(r.checks);
-      })
-      .catch(() => {
-        // A failed check is not a licence to imply the prices were confirmed.
-        if (live) setPriceChecks([]);
-      });
-    return () => {
-      live = false;
-    };
-    // Keyed on the ids, not on `cart`: the memo makes a new array on every
-    // render, and depending on it would re-check the same rows for ever.
-  }, [ids]);
-
-  const stale = useMemo(() => priceChecks.filter((c) => c.disagrees), [priceChecks]);
 
   /**
    * Reopens a shortlist this browser already has. No network, no credit: the
@@ -349,41 +316,49 @@ export default function App() {
     setSentence(e.sentence);
     setBand('all');
     setError('');
-    setQuantities({});
     window.location.hash = id;
   }, []);
 
   /** The bill stands between Pay and PayPal; nothing is created until Confirm. */
-  const [confirming, setConfirming] = useState(false);
+  /** The pass dialog stands between the button and PayPal; nothing is created until Confirm. */
+  const [offering, setOffering] = useState(false);
 
-  const pay = useCallback(async () => {
-    setBusy(true);
+  const buy = useCallback(async () => {
+    setBuying(true);
     setError('');
     try {
-      // Nothing to pay for without an errand, and the button is only reachable
-      // once there is one.
-      if (!errand) return;
-      const created = await createOrder(cart, errand.id);
-      setOrder(created);
-      // Pressing Pay has to end up at PayPal. It used to only print the order
-      // and an approve link in a box under the grid, which on a full shortlist
-      // is a screen and a half below the button that was just pressed: the
-      // shopper saw nothing happen and the order sat at PAYER_ACTION_REQUIRED
-      // forever. Same tab, because the return URL brings them back here.
+      const created = await buyPass();
       if (created.approveUrl) {
+        // Same tab: the return URL brings the shopper back here to be captured.
         window.location.assign(created.approveUrl);
         return;
       }
-      // No approve link means PayPal accepted the order but offered nowhere to
-      // approve it. That is a failure, not a quiet state.
       setError(`PayPal created order ${created.id} with no approval link (${created.status}).`);
+      setOffering(false);
     } catch (e) {
       setError((e as Error).message);
-      setConfirming(false);
+      setOffering(false);
     } finally {
-      setBusy(false);
+      setBuying(false);
     }
-  }, [cart, errand]);
+  }, []);
+
+  /** Hands back the errands the shopper never used. */
+  const giveBack = useCallback(async () => {
+    if (!pass) return;
+    setRefunding(true);
+    setError('');
+    try {
+      const { refund, pass: after } = await refundPass(pass.orderId);
+      setPass({ ...after, refundedAt: new Date().toISOString() });
+      setRefunded(`${refund.amount ?? ''} ${refund.currency ?? ''}`.trim());
+      localStorage.removeItem(PASS_KEY);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRefunding(false);
+    }
+  }, [pass]);
 
   return (
     <>
@@ -430,23 +405,11 @@ export default function App() {
             <p>Asking PayPal what it took&hellip;</p>
           </div>
         )}
-        {order && !receipt && (
-          /* Shown for the moment between the order coming back and the browser
-             leaving for PayPal, and left standing if that navigation is
-             blocked, so there is always a way forward on screen. */
-          <div className="receipt receipt-wait">
-            <p>
-              Taking you to PayPal to approve {order.total} {order.currency} (order{' '}
-              <span className="num">{order.id}</span>)&hellip;{' '}
-              {order.approveUrl && <a href={order.approveUrl}>Go there now</a>}
-            </p>
-          </div>
-        )}
         {receipt && (
           <div className="receipt">
             <p className="rhead">
               {receipt.status === 'COMPLETED'
-                ? 'Paid. PayPal took the money.'
+                ? `Paid. Your pass is good for ${pass?.left ?? ''} errands.`
                 : `PayPal returned ${receipt.status}.`}
             </p>
             <dl className="rgrid">
@@ -479,17 +442,16 @@ export default function App() {
               )}
             </dl>
             <p className="rnote">
-              PayPal sandbox, so no real money moved and nothing was ordered from the
-              retailer &mdash; Channel3 has no checkout endpoint, and the agent is not
-              allowed to buy on a shop&rsquo;s site on your behalf. What this proves is the
-              payment half: the agent proposed, you approved at PayPal, and PayPal captured.
+              This paid for the agent&rsquo;s work, not for goods: the products are bought at the
+              retailer, and the retailer name in every row is the link there. PayPal sandbox, so no
+              real money moved. The errands you do not spend can be refunded from the bar below.
             </p>
           </div>
         )}
         {cancelled && !receipt && (
           <div className="receipt receipt-off">
             <p className="rhead">You cancelled at PayPal. Nothing was charged.</p>
-            <p className="rnote">The shortlist is still here; the cart is empty again.</p>
+            <p className="rnote">No pass was bought. The free errands still work.</p>
           </div>
         )}
         <div className="titlerow">
@@ -726,15 +688,11 @@ export default function App() {
                   columnDefs={columns}
                   defaultColDef={defaultColDef}
                   getRowId={(p) => p.data.productId}
-                  rowSelection={{ mode: 'multiRow', enableClickSelection: false }}
                   isExternalFilterPresent={isExternalFilterPresent}
                   doesExternalFilterPass={doesExternalFilterPass}
                   onGridReady={(e: GridReadyEvent<Row>) => {
                     api.current = e.api;
                   }}
-                  onSelectionChanged={(e: SelectionChangedEvent<Row>) =>
-                    setSelected(e.api.getSelectedRows())
-                  }
                   onRowDoubleClicked={(e) => e.data && setOpen(e.data)}
                   tooltipShowDelay={200}
                   overlayNoRowsTemplate={'<span style="color:#6b6b6b">Nothing in this view.</span>'}
@@ -745,63 +703,49 @@ export default function App() {
         )}
       </main>
 
-      {errand && (
-        <div className="cartbar">
-          {stale.length > 0 && (
-            <div className="stalebar">
-              <strong>
-                {stale.length === 1
-                  ? 'One ticked row is priced at a figure Channel3 itself has moved on from.'
-                  : `${stale.length} ticked rows are priced at figures Channel3 itself has moved on from.`}
-              </strong>{' '}
-              {stale.map((c) => {
-                const row = cart.find(({ row: r }) => r.productId === c.productId)?.row;
-                return (
-                  <span key={c.productId} className="staleline">
-                    {row ? `${row.title.slice(0, 48)}: ` : ''}
-                    the shortlist says {money(c.indexedPrice, row?.currency ?? 'USD')}, its price
-                    history says {money(c.trackedPrice!, row?.currency ?? 'USD')}
-                    {c.lastChange ? ` since ${c.lastChange.date}` : ''}.
-                  </span>
-                );
-              })}{' '}
-              The cart still totals what the shortlist showed. Open the listing before you approve.
-            </div>
+      {/* The bar at the foot used to total a cart of goods and offer to pay for
+          them, which is money Errand cannot earn: the retailer sells the
+          products. It carries the pass instead — what is left of the work the
+          shopper has paid for, and the one place to buy more. */}
+      <div className="passbar">
+        <div className="passbar-inner">
+          {pass && !pass.refundedAt ? (
+            <>
+              <span className="passleft num">{pass.left}</span>
+              <span className="cartnote">
+                errand{pass.left === 1 ? '' : 's'} left on your pass &middot; {pass.used} of{' '}
+                {pass.runs} used &middot; paid ${pass.amount} {pass.currency}
+              </span>
+              {pass.left > 0 && (
+                <button className="ghost" onClick={() => void giveBack()} disabled={refunding}>
+                  {refunding ? 'Refunding…' : 'Refund what is left'}
+                </button>
+              )}
+              <button className="primary" onClick={() => setOffering(true)} disabled={buying}>
+                Another pass
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="cartnote">
+                {refunded
+                  ? `Refunded ${refunded}. The free errands still work.`
+                  : `${freeRuns} free errands an hour from this address. A pass covers ${health?.pass?.runs ?? 25} more.`}
+              </span>
+              <button className="primary" onClick={() => setOffering(true)} disabled={buying}>
+                Buy a pass &middot; ${health?.pass?.price ?? '3.00'}
+              </button>
+            </>
           )}
-          <div className="cartbar-inner">
-            <span className="carttotal num">
-              {cart.length === 0 ? '$0.00' : money(cartTotal, cart[0]!.row.currency)}
-            </span>
-            <span className="cartnote">
-              {cart.length === 0
-                ? 'Tick the rows you want.'
-                : `${cart.length} item${cart.length > 1 ? 's' : ''} selected${
-                    units > cart.length ? ` · ${units} units` : ''
-                  }`}
-              {unbuyable > 0 &&
-                ` · ${unbuyable} selected row${unbuyable > 1 ? 's' : ''} out of stock in the index`}
-            </span>
-            <button
-              className="primary"
-              onClick={() => setConfirming(true)}
-              disabled={busy || cart.length === 0}
-            >
-              Pay with PayPal
-            </button>
-          </div>
         </div>
-      )}
+      </div>
 
-      {confirming && (
-        <Confirm
-          cart={cart}
-          total={cartTotal}
-          onQuantity={setQuantity}
-          stale={stale}
-          unbuyable={unbuyable}
-          busy={busy}
-          onConfirm={() => void pay()}
-          onClose={() => setConfirming(false)}
+      {offering && (
+        <BuyPass
+          {...(health ? { health } : {})}
+          busy={buying}
+          onConfirm={() => void buy()}
+          onClose={() => setOffering(false)}
         />
       )}
 
@@ -856,10 +800,11 @@ function Primer() {
         </li>
         <li>
           <span className="n">3</span>
-          <h3>You tick the rows and pay once</h3>
+          <h3>You buy at the shop; you pay Errand for the search</h3>
           <p>
-            Nothing is bought until you approve it. The order goes to PayPal in sandbox mode, so
-            this demo spends no real money.
+            Every retailer name in the shortlist is the link to buy there. PayPal pays for the
+            agent&rsquo;s work instead &mdash; a pass of errands, refundable for the part you do not
+            spend. The agent never buys on a shop&rsquo;s site for you.
           </p>
         </li>
       </ol>

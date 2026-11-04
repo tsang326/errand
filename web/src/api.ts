@@ -1,4 +1,4 @@
-import type { CapturedOrder, CreatedOrder, Errand, Health, PriceCheck, Row } from './types';
+import type { CapturedOrder, CreatedOrder, Errand, Health, Pass, PriceCheck, Row } from './types';
 
 /**
  * The deployment sleeps after 15 minutes idle and takes about a minute to come
@@ -36,8 +36,34 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return json;
 }
 
-export const runErrand = (sentence: string): Promise<Errand> =>
-  post<Errand>('/api/errand', { sentence });
+export const runErrand = (sentence: string, pass?: string): Promise<Errand> =>
+  post<Errand>('/api/errand', { sentence, ...(pass ? { pass } : {}) });
+
+/**
+ * Buys a pass. No price crosses the wire: what a pass costs and how many
+ * errands it holds are the server's to decide, because the pass is Errand's own
+ * product rather than a cart a browser priced.
+ */
+export const buyPass = (): Promise<CreatedOrder> =>
+  post<CreatedOrder>('/api/pass/order', {
+    returnUrl: `${window.location.origin}/paid`,
+    cancelUrl: `${window.location.origin}/cancelled`,
+  });
+
+/** Takes the money for an approved pass; only after this is there a pass. */
+export const capturePass = (orderId: string): Promise<{ captured: CapturedOrder | null; pass: Pass }> =>
+  post(`/api/pass/${encodeURIComponent(orderId)}/capture`, {});
+
+/** What is left on a pass, restored from PayPal if this instance has restarted. */
+export const readPass = async (orderId: string): Promise<Pass | undefined> => {
+  const res = await fetch(`/api/pass/${encodeURIComponent(orderId)}`);
+  if (!res.ok) return undefined;
+  return ((await res.json()) as { pass: Pass }).pass;
+};
+
+/** Hands back the runs the shopper did not use. */
+export const refundPass = (orderId: string): Promise<{ refund: { amount?: string; currency?: string; status: string }; pass: Pass }> =>
+  post(`/api/pass/${encodeURIComponent(orderId)}/refund`, {});
 
 export const getHealth = async (): Promise<Health> => {
   const res = await fetch('/api/health');

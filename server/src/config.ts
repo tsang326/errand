@@ -49,6 +49,21 @@ export const config = {
     rankLimit: Number(str('ERRAND_RANK_LIMIT', '24')),
   },
 
+  /**
+   * What a pass costs and what it buys. The price is set here and nowhere near
+   * the client: the goods cart used to send PayPal a unit price the browser had
+   * chosen, which is only safe while the account is in sandbox. A pass is
+   * Errand's own product, so the server is the only thing that may price it.
+   *
+   * Four cents of model and index spend per errand, so twenty-five of them cost
+   * about a dollar to serve. Three dollars covers that, the Render instance, and
+   * the ones that fail and are not charged for.
+   */
+  pass: {
+    runs: Number(str('PASS_RUNS', '25')),
+    price: str('PASS_PRICE', '3.00'),
+    currency: str('PASS_CURRENCY', 'USD'),
+  },
   limits: {
     // Per-IP ceiling on /api/errand, the only route that spends money. Thirty
     // runs an hour is $1 of model spend from one caller: more than a judge
@@ -64,6 +79,11 @@ export const config = {
     // $3 an hour, and the project's spend cap is what bounds the day.
     errandGlobalPerHour: Number(str('ERRAND_RATE_GLOBAL_PER_HOUR', '90')),
     errandWindowMs: Number(str('ERRAND_RATE_WINDOW_MS', String(60 * 60 * 1000))),
+    // Errands an address gets without paying. A judge has to be able to type a
+    // sentence and see the thing work without reaching for a wallet, and five
+    // runs is every example sentence on the page plus two of their own. Past
+    // that the caller is exploring on my money, which is what the pass is for.
+    freeRunsPerHour: Number(str('ERRAND_FREE_RUNS_PER_HOUR', '5')),
   },
 } as const;
 

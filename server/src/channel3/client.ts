@@ -3,7 +3,17 @@ import type { Offer, Product, SearchResult } from './types.js';
 import { fixtureSearch } from './fixtures.js';
 import { DEADLINE_MS, fetchWithDeadline } from '../net.js';
 
-type SearchOptions = { query: string; maxPrice?: number; limit?: number };
+type SearchOptions = {
+  query: string;
+  maxPrice?: number;
+  limit?: number;
+  /**
+   * Channel3's `x-user-id`. It ties this search, the clicks that follow it and
+   * the commission they earn to one shopper, which is the only way to tell
+   * whose recommendation paid off. Letters, digits and `._@-`, up to 128.
+   */
+  userId?: string;
+};
 
 /**
  * One call to Channel3's /search. Everything about shaping the request lives
@@ -37,6 +47,7 @@ export async function searchProducts(opts: SearchOptions): Promise<SearchResult>
       headers: {
         'x-api-key': config.channel3.apiKey,
         'content-type': 'application/json',
+        ...(opts.userId ? { 'x-user-id': opts.userId.slice(0, 128) } : {}),
       },
       body: JSON.stringify(body),
     },

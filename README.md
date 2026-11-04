@@ -2,14 +2,18 @@
 
 A shopping agent you can audit. You type one sentence; it searches real retailers, then
 **rules on every product against every requirement it found in your words** and shows its
-work as a ledger. You tick the rows you want and pay once, with PayPal.
+work as a ledger. You buy the goods at the shop; you pay Errand, with PayPal, for the search.
 
 **Live demo:** https://errand-46ur.onrender.com
 
-> The demo runs PayPal in **sandbox**, so no real money moves. It also never places an order
-> with the retailer: it creates a PayPal order for the rows you ticked. Prices and stock are
-> the product index's snapshot, not the retailer's page at the moment you read it — each row
-> links to the listing so you can check.
+> The demo runs PayPal in **sandbox**, so no real money moves. Errand does not sell the
+> goods and never places an order with a retailer — Channel3 ships no checkout endpoint, and
+> an agent buying on a shop's site for you is a thing this app refuses to be. The products
+> are bought at the retailer through the tracked link in each row, which is also where
+> Errand earns a commission. What PayPal pays for here is the agent's own work: a **pass**
+> of 25 errands for $3.00, spent one search at a time, refundable for the part you do not
+> use. Prices and stock are the product index's snapshot, not the retailer's page at the
+> moment you read it — each row links to the listing so you can check.
 
 ## The idea
 
@@ -57,7 +61,7 @@ tracking** history (`GET /v0/price-tracking/history/{id}`) — a different endpo
 used deliberately to check the first one rather than to trust it. The two can disagree: on
 2026-11-04 `/search` served that booster box at $120 while its own tracked history had
 stepped to $304.17 on 31 October. When they disagree, the pay bar says so, naming both
-figures and the date, and does not block the button: the shopper decides.
+figures and the date, and does not block anything: the shopper decides.
 
 Two other numbers are deliberately absent. There is no fit percentage. And there is no
 struck-through "was" price: Channel3's `compareAtPrice` is not a figure the product was on
@@ -85,11 +89,14 @@ sentence ──▶ planSearch ──▶ Channel3 /v1/search ──▶ rankProduc
    so a mark of "the index does not say" reports Channel3's silence rather than ours. All
    24 rows are judged, not a top slice: a row nobody read would show an empty ledger and the
    counts on screen would stop adding up.
-4. **PayPal Orders v2** gets the ticked rows as line items, summed in cents, with
-   `PAY_NOW` so the shopper lands on payment rather than a review page. PayPal sends the
-   shopper back with the order token, the app captures it, and the screen shows the capture
-   id and what was taken. An order that is created and never captured charges nobody, so
-   the round trip is the only part of this that proves the money moved.
+4. **PayPal Orders v2** sells a pass: one line item, priced by the server (the browser sends
+   only where to come back to), with `PAY_NOW` so the shopper lands on payment rather than a
+   review page. PayPal sends the shopper back with the order token, the app captures it, and
+   only a `COMPLETED` capture becomes a pass. An order created and never captured charges
+   nobody, so the round trip is the only part that proves the money moved. An errand that
+   fails upstream is not charged for — the run is spent after the shortlist exists, not
+   before — and **Payments v2 refunds** the unspent part of a pass on request, to the cent.
+   Five errands an hour are free from any address, so the thing can be tried without paying.
 
 Every outbound call has a deadline (Channel3 25s, OpenAI 30s, PayPal 20s) and fails as a 504
 with a reason. On a free hosting plan the common failure is not a wrong answer, it is a
@@ -123,10 +130,13 @@ For development, `pnpm dev` runs the API on `:8787` and Vite on `:5173`.
 
 ## What is deliberately missing
 
-- **No order reaches the retailer.** Errand creates and captures the PayPal order; fulfilment
-  would need a merchant relationship with each shop, which a demo cannot have, and Channel3
-  ships no checkout endpoint. The payment is real as far as PayPal is concerned (in sandbox);
-  the shipment is not.
+- **No order reaches the retailer, and none is meant to.** Errand sells searches, not goods:
+  fulfilment would need a merchant relationship with each shop, Channel3 ships no checkout
+  endpoint, and automating a checkout on a retailer's own site breaks that retailer's terms.
+  The goods are bought by the shopper, at the shop, through the tracked link.
+- **Passes live in memory too.** A restart loses how many runs a pass has spent, and the
+  server re-reads the order from PayPal and hands the pass back whole — erring toward the
+  person who paid. A real deployment would keep this in a database.
 - **Results live in memory on the server.** The host sleeps when idle, so a restart clears
   them. Your own browser keeps a copy of the last ten shortlists, so a reload costs nothing
   and the sentences you have already run are listed under the box; a link shared with someone

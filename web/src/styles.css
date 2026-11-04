@@ -458,7 +458,7 @@ a.ghost {
 
 /* ---------- phone ---------- */
 @media (max-width: 700px) {
-  .canvas, .topbar-inner, .cartbar-inner { width: calc(100% - 32px); }
+  .canvas, .topbar-inner, .cartbar-inner, .passbar-inner { width: calc(100% - 32px); }
   .ask { flex-direction: column; }
   /* flex:1 governs the width in a row and the height in a column: left as it
      is, the box the sentence sized itself to gets squashed back to one line. */
@@ -785,3 +785,32 @@ button, .chipbtn, .figure, .ghost, .count { cursor: pointer; }
 .bl-qty .qnum::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .bill-lines li { gap: 12px; }
 .bl-price { min-width: 84px; text-align: right; }
+
+/* ---------- pass bar ----------
+   Same shelf the cart bar used to occupy, carrying the one thing the shopper
+   has actually bought from Errand: errands. */
+.passbar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.passbar-inner {
+  width: min(var(--column), 100% - 48px);
+  margin: 0 auto;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 0;
+}
+.passleft {
+  font-family: 'Geist Mono', ui-monospace, monospace; /* taste-skill-ignore: a count, set like every other figure */
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  color: var(--chart-3);
+}
+.passbar .primary { margin-left: auto; }
+.passbar .ghost + .primary { margin-left: 0; }

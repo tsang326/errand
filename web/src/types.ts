@@ -70,6 +70,8 @@ export type Errand = {
   createdAt: string;
   /** Absent on an errand stored by a build older than the one that saved it. */
   ranking?: { source: 'model' | 'passthrough'; costUsd: number };
+  /** Present when this errand was paid for: the pass, one run lighter. */
+  pass?: Pass;
 };
 
 export type CreatedOrder = {
@@ -101,4 +103,22 @@ export type Health = {
   paypal: string;
   model: string;
   ai: { spentUsd: number; spendBudgetUsd: number; modelCalls: number };
+  pass?: { runs: number; price: string; currency: string; held: number };
+  rate?: { perHour: number; freeRunsPerHour: number; globalPerHour: number };
+};
+
+/**
+ * A pass: errands bought up front and spent one at a time. The money is for the
+ * agent's work, which is the only thing in this app that Errand itself makes
+ * and delivers — the goods belong to the retailer, who sells them.
+ */
+export type Pass = {
+  orderId: string;
+  runs: number;
+  used: number;
+  left: number;
+  amount: string;
+  currency: string;
+  captureId?: string;
+  refundedAt?: string;
 };
