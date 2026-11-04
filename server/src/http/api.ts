@@ -1,6 +1,6 @@
 import express, { type Request, type Response } from 'express';
 import cors from 'cors';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -18,8 +18,27 @@ import {
   type Mark,
 } from '../ai/shopper.js';
 import { meterState } from '../ai/meter.js';
-import { createOrder, captureOrder, type CartLine } from '../paypal/orders.js';
+import {
+  createOrder,
+  captureOrder,
+  refundCapture,
+  getOrder,
+  type CartLine,
+} from '../paypal/orders.js';
 import { rateLimit, rateLimitState } from './ratelimit.js';
+import {
+  getPass,
+  grantPass,
+  hasRunLeft,
+  markRefunded,
+  passCurrency,
+  passPrice,
+  passRuns,
+  passView,
+  passesHeld,
+  refundDue,
+  spendRun,
+} from '../passes.js';
 
 /** One row as the grid consumes it: the product, its best offer, the agent's verdict. */
 export type Row = {
@@ -128,7 +147,11 @@ type Errand = {
  */
 const errands = new Map<string, Errand>();
 
-const errandBody = z.object({ sentence: z.string().min(3).max(500) });
+const errandBody = z.object({
+  sentence: z.string().min(3).max(500),
+  /** A pass the shopper bought, spent one errand at a time. */
+  pass: z.string().min(1).max(64).optional(),
+});
 
 const priceCheckBody = z.object({
   lines: z.array(z.object({ productId: z.string().min(1), price: z.number() })).min(1).max(12),
@@ -143,11 +166,29 @@ const cartLine = z.object({
   currency: z.string().length(3),
 });
 
+const passOrderBody = z.object({
+  returnUrl: z.string().url().optional(),
+  cancelUrl: z.string().url().optional(),
+});
+
 const orderBody = z.object({
   lines: z.array(cartLine).min(1).max(10),
   returnUrl: z.string().url().optional(),
   cancelUrl: z.string().url().optional(),
 });
+
+/**
+ * A stable, non-identifying tag for one caller, for Channel3's `x-user-id`.
+ * The address itself never leaves this process: it is a third party's log, and
+ * the only thing they need is that two searches came from the same person.
+ */
+const callerTag = (ip: string): string =>
+  createHash('sha256').update(`errand:${ip}`).digest('hex').slice(0, 16);
+
+const passViewOf = (orderId: string) => {
+  const pass = getPass(orderId);
+  return pass ? passView(pass) : undefined;
+};
 
 const fail = (res: Response, status: number, error: string, extra: object = {}): void => {
   res.status(status).json({ error, ...extra });
@@ -178,8 +219,10 @@ export function buildApp() {
       model: config.openai.apiKey ? config.openai.model : 'none',
       ai: meterState(),
       errandsHeld: errands.size,
+      pass: { runs: passRuns(), price: passPrice(), currency: passCurrency(), held: passesHeld() },
       rate: {
         perHour: config.limits.errandPerHour,
+        freeRunsPerHour: config.limits.freeRunsPerHour,
         globalPerHour: config.limits.errandGlobalPerHour,
         seenBy: req.ip ?? 'unknown',
         ...rateLimitState(),
@@ -190,11 +233,29 @@ export function buildApp() {
   app.post('/api/errand', async (req: Request, res: Response) => {
     // Before the model call, not after: the point is to not spend the money.
     const caller = req.ip ?? 'unknown';
-    const gate = rateLimit(caller, config.limits.errandPerHour, config.limits.errandWindowMs);
+    const parsedEarly = errandBody.safeParse(req.body);
+    const passId = parsedEarly.success ? parsedEarly.data.pass : undefined;
+    // A pass that still has runs on it skips the free ceiling, because the
+    // ceiling exists to stop strangers spending my money and this caller is
+    // spending their own. It does not skip the global one: that is the backstop
+    // against a loop, paid or not.
+    const paying = !!passId && hasRunLeft(passId);
+    if (passId && !paying) {
+      const known = getPass(passId);
+      return fail(res, 402, 'pass_spent', {
+        detail: known
+          ? `That pass has used all ${known.runs} of its errands.`
+          : 'That pass is not known to this instance. Reload the page to restore it from PayPal.',
+      });
+    }
+    const gate = paying
+      ? { allowed: true as const }
+      : rateLimit(caller, config.limits.freeRunsPerHour, config.limits.errandWindowMs);
     if (!gate.allowed) {
-      return fail(res, 429, 'rate_limited', {
+      return fail(res, 402, 'free_runs_spent', {
         retryAfterSeconds: gate.retryAfterSeconds,
-        detail: `This demo allows ${config.limits.errandPerHour} errands an hour from one address.`,
+        detail: `This address has used its ${config.limits.freeRunsPerHour} free errands this hour. A pass covers ${passRuns()} more.`,
+        pass: { runs: passRuns(), price: passPrice(), currency: passCurrency() },
       });
     }
     // The backstop. A caller who rotates X-Forwarded-For gets a fresh per-caller
@@ -208,15 +269,19 @@ export function buildApp() {
       });
     }
 
-    const parsed = errandBody.safeParse(req.body);
-    if (!parsed.success) return fail(res, 400, 'sentence must be 3-500 characters');
-    const { sentence } = parsed.data;
+    if (!parsedEarly.success) return fail(res, 400, 'sentence must be 3-500 characters');
+    const { sentence } = parsedEarly.data;
 
     try {
       const plan = await planSearch(sentence);
       const search = await searchProducts({
         query: plan.query,
         ...(plan.maxPrice !== undefined ? { maxPrice: plan.maxPrice } : {}),
+        // Channel3 attributes clicks and commission per user when the search
+        // carries one. A paid shopper is identified by their pass; everyone
+        // else by their address, hashed, because the id is sent to a third
+        // party and an IP is not ours to hand over.
+        userId: passId ? `pass-${passId}` : `anon-${callerTag(caller)}`,
       });
       const ranking = await rankProducts(sentence, plan, search.products);
 
@@ -231,8 +296,11 @@ export function buildApp() {
         ranking: { source: ranking.source, costUsd: Number(ranking.costUsd.toFixed(4)) },
       };
       errands.set(errand.id, errand);
+      // Spent here and not at the gate: a run that died upstream delivered
+      // nothing, and the shopper keeps the errand they paid for.
+      if (paying && passId) spendRun(passId);
 
-      return res.json(errand);
+      return res.json({ ...errand, ...(passId ? { pass: passViewOf(passId) } : {}) });
     } catch (err) {
       const e = err as Error & { code?: string; status?: number };
       if (e.code === 'ai_budget_spent') return fail(res, 429, e.message, { code: e.code });
@@ -312,6 +380,108 @@ export function buildApp() {
     try {
       const captured = await captureOrder(orderId, `capture-${orderId}`);
       return res.json(captured);
+    } catch (err) {
+      return fail(res, 502, (err as Error).message.slice(0, 400));
+    }
+  });
+
+  /**
+   * Buys a pass. The browser sends nothing but where to come back to: the price
+   * and the size of the pass are the server's, which is the difference between
+   * selling your own product and forwarding a cart a stranger priced.
+   */
+  app.post('/api/pass/order', async (req: Request, res: Response) => {
+    if (!paypalConfigured()) return fail(res, 503, 'PayPal is not configured on this deployment');
+    const parsed = passOrderBody.safeParse(req.body);
+    if (!parsed.success) return fail(res, 400, 'bad return urls');
+    const line: CartLine = {
+      productId: 'errand-pass',
+      title: `Errand: ${passRuns()} agent searches`,
+      merchant: 'Errand',
+      unitPrice: Number(passPrice()),
+      quantity: 1,
+      currency: passCurrency(),
+    };
+    try {
+      const order = await createOrder(
+        [line],
+        parsed.data.returnUrl ?? `${config.publicUrl}/paid`,
+        parsed.data.cancelUrl ?? `${config.publicUrl}/cancelled`,
+      );
+      return res.json(order);
+    } catch (err) {
+      return fail(res, 502, (err as Error).message.slice(0, 400));
+    }
+  });
+
+  /** Takes the money, and only then is there a pass. */
+  app.post('/api/pass/:id/capture', async (req: Request, res: Response) => {
+    if (!paypalConfigured()) return fail(res, 503, 'PayPal is not configured on this deployment');
+    const orderId = String(req.params.id ?? '');
+    const already = getPass(orderId);
+    if (already) return res.json({ captured: null, pass: passView(already) });
+    try {
+      const captured = await captureOrder(orderId, `capture-${orderId}`);
+      if (captured.status !== 'COMPLETED') {
+        return fail(res, 402, `PayPal returned ${captured.status}`, { captured });
+      }
+      return res.json({ captured, pass: passView(grantPass(captured)) });
+    } catch (err) {
+      return fail(res, 502, (err as Error).message.slice(0, 400));
+    }
+  });
+
+  /**
+   * The pass this browser is holding. Asked on load, which is also how a pass
+   * survives a restart: the process forgets, PayPal does not, so an order it
+   * confirms as COMPLETED is handed back as a whole pass.
+   */
+  app.get('/api/pass/:id', async (req: Request, res: Response) => {
+    const orderId = String(req.params.id ?? '');
+    const held = getPass(orderId);
+    if (held) return res.json({ pass: passView(held) });
+    if (!paypalConfigured()) return fail(res, 404, 'no such pass');
+    try {
+      const order = await getOrder(orderId);
+      if (order.status !== 'COMPLETED') return fail(res, 404, 'no such pass');
+      const capture = order.purchase_units?.[0]?.payments?.captures?.[0];
+      const restored = grantPass({
+        id: order.id ?? orderId,
+        status: order.status,
+        ...(capture?.id ? { captureId: capture.id } : {}),
+        ...(capture?.amount?.value ? { amount: capture.amount.value } : {}),
+        ...(capture?.amount?.currency_code ? { currency: capture.amount.currency_code } : {}),
+      });
+      return res.json({ pass: passView(restored), restored: true });
+    } catch {
+      return fail(res, 404, 'no such pass');
+    }
+  });
+
+  /**
+   * Hands back what the pass has not spent. An app that can take money and not
+   * return it is asking for trust it has not earned, and the agent's own output
+   * is the thing being sold: if it was not worth the runs, the runs are owed.
+   */
+  app.post('/api/pass/:id/refund', async (req: Request, res: Response) => {
+    if (!paypalConfigured()) return fail(res, 503, 'PayPal is not configured on this deployment');
+    const pass = getPass(String(req.params.id ?? ''));
+    if (!pass) return fail(res, 404, 'no such pass');
+    if (pass.refundedAt) return fail(res, 409, 'that pass was already refunded');
+    if (!pass.captureId) return fail(res, 409, 'that pass has no capture to refund');
+    const due = refundDue(pass);
+    if (Number(due) <= 0) {
+      return fail(res, 409, 'that pass has been spent in full', { pass: passView(pass) });
+    }
+    try {
+      const refund = await refundCapture(
+        pass.captureId,
+        due,
+        pass.currency,
+        `refund-${pass.orderId}`,
+      );
+      markRefunded(pass.orderId);
+      return res.json({ refund, pass: passView(pass) });
     } catch (err) {
       return fail(res, 502, (err as Error).message.slice(0, 400));
     }

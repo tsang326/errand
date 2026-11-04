@@ -157,3 +157,44 @@ export async function captureOrder(orderId: string, requestId: string): Promise<
 
 export const getOrder = (orderId: string): Promise<PayPalOrder> =>
   paypalRequest<PayPalOrder>('GET', `/v2/checkout/orders/${encodeURIComponent(orderId)}`);
+
+/** What PayPal recorded when money went back. */
+export type RefundedCapture = {
+  id: string;
+  status: string;
+  amount?: string;
+  currency?: string;
+};
+
+/**
+ * Hands money back for part or all of a capture.
+ *
+ * Errand needs this because it sells runs, not goods: a shopper who bought a
+ * pass and stopped using it is owed the part they did not spend, and an app
+ * that can take money but not return it is asking for trust it has not earned.
+ * The request id is derived by the caller from what is being refunded, so a
+ * retry cannot refund twice.
+ */
+export async function refundCapture(
+  captureId: string,
+  amount: string,
+  currency: string,
+  requestId: string,
+): Promise<RefundedCapture> {
+  const refund = await paypalRequest<{
+    id?: string;
+    status?: string;
+    amount?: { value?: string; currency_code?: string };
+  }>(
+    'POST',
+    `/v2/payments/captures/${encodeURIComponent(captureId)}/refund`,
+    { amount: { value: amount, currency_code: currency } },
+    requestId,
+  );
+  return {
+    id: refund.id ?? '',
+    status: refund.status ?? 'UNKNOWN',
+    ...(refund.amount?.value ? { amount: refund.amount.value } : {}),
+    ...(refund.amount?.currency_code ? { currency: refund.amount.currency_code } : {}),
+  };
+}
