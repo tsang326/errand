@@ -50,14 +50,19 @@ export const config = {
   },
 
   limits: {
-    // Per-IP ceiling on /api/errand, the only route that spends money. Six runs
-    // an hour is more than a judge needs (each one takes ~20 s to read) and far
-    // less than a loop needs to be worth writing. See http/ratelimit.ts.
-    errandPerHour: Number(str('ERRAND_RATE_PER_HOUR', '6')),
+    // Per-IP ceiling on /api/errand, the only route that spends money. Thirty
+    // runs an hour is $1 of model spend from one caller: more than a judge
+    // trying every example sentence will reach (each run takes ~20 s to read),
+    // and little enough that a loop from a browser tab stops being worth
+    // writing. Six was the first figure here and was tighter than a judge
+    // exploring the thing deserves. See http/ratelimit.ts.
+    errandPerHour: Number(str('ERRAND_RATE_PER_HOUR', '30')),
     // Shared by everyone, so a caller who rotates X-Forwarded-For to dodge the
-    // per-caller ceiling still meets a wall. Judging is 1-15 December and a
-    // judge needs two or three runs, so 40 an hour is generous for real use.
-    errandGlobalPerHour: Number(str('ERRAND_RATE_GLOBAL_PER_HOUR', '40')),
+    // per-caller ceiling still meets a wall. It has to sit well above the
+    // per-IP figure or one caller holds the whole pool and the second judge of
+    // the hour is turned away: 90 is three callers at their own ceiling, about
+    // $3 an hour, and the project's spend cap is what bounds the day.
+    errandGlobalPerHour: Number(str('ERRAND_RATE_GLOBAL_PER_HOUR', '90')),
     errandWindowMs: Number(str('ERRAND_RATE_WINDOW_MS', String(60 * 60 * 1000))),
   },
 } as const;
