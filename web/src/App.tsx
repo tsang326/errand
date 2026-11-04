@@ -58,7 +58,12 @@ const EXAMPLES = [
   // the second requirement rules a third of the rows out, by name, on evidence
   // a reader can check from the title. The other sentences mostly produce marks
   // the listings are silent about.
-  'a sealed One Piece booster box under $120, English edition, not a Japanese print',
+  //
+  // Deliberately without a price ceiling. A ceiling in the sentence becomes a
+  // hard Channel3 filter rather than a column, so the dearer half of the index
+  // never reaches the screen and nothing on the screen says so: this query
+  // capped at $120 hid every box up to the $281 the index really holds.
+  'a sealed One Piece Card Game booster box, English edition, not a Japanese print',
   'a gift for a six year old who loves dinosaurs, under $40, must be in stock',
   'a merino wool sweater for cold offices, size large, nothing over $120',
   'a desk lamp that will not glare on a second monitor, under $60',
@@ -388,6 +393,21 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            <p className="plan">
+              <span className="k">Searched</span> <span className="q">{errand.plan.query}</span>
+              {errand.plan.maxPrice !== undefined && (
+                <>
+                  {' · '}
+                  <b>under {money(errand.plan.maxPrice, errand.rows[0]?.currency ?? 'USD')}</b>, as a
+                  filter, not a column
+                </>
+              )}
+              {' · '}
+              {requirements.length === 0
+                ? 'no checkable requirement found'
+                : `${requirements.length} requirement${requirements.length === 1 ? '' : 's'}, one per column`}
+            </p>
 
             <div className="gridwrap">
               {requirements.length > 0 && (

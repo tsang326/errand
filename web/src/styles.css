@@ -252,6 +252,20 @@ button.primary:disabled { background: #2b2e33; color: #9499a1; cursor: default; 
   border-bottom: 1px solid var(--rule);
   background: var(--surface);
 }
+/* What was actually searched for, above the grid. The screen used to show only
+   the answer, so a sentence that came back empty and one that came back full
+   read as two moods instead of two searches; and anything folded into the query
+   (a category word, a price ceiling) left no trace on the page at all. */
+.plan {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: var(--fs-small);
+  line-height: 1.5;
+}
+.plan .k { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
+.plan .q { color: var(--text); }
+.plan b { color: var(--text); font-weight: 500; }
+
 /* The qualifier on the spend figure is the honest part of it, but it overran
    the top bar on a phone. The figure shows at every width; the words go below 760. */
 @media (max-width: 760px) { .since { display: none; } }
