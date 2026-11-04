@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { searchProducts, normalise } from './client.js';
+import { searchProducts, normalise, verdictFrom } from './client.js';
 import { fixtureSearch } from './fixtures.js';
 import { cheapestOffer, bestCommission, type Product } from './types.js';
 
@@ -76,4 +76,41 @@ test('cheapest offer skips out-of-stock listings', () => {
   };
   assert.equal(cheapestOffer(p)?.domain, 'available.example');
   assert.equal(bestCommission(p), 0.05);
+});
+
+test('a price the history has moved on from is reported as a disagreement', async () => {
+  // The real case, from 2026-11-04: /search served $120 while the same
+  // product's tracked history had stepped to $304.17 on 31 October.
+  const points = [
+    { date: '2026-10-29', price: 120 },
+    { date: '2026-10-30', price: 120 },
+    { date: '2026-10-31', price: 304.17 },
+    { date: '2026-11-04', price: 304.17 },
+  ];
+  const check = verdictFrom('exWNalp', 120, points);
+  assert.equal(check.disagrees, true);
+  assert.equal(check.trackedPrice, 304.17);
+  assert.deepEqual(check.lastChange, { from: 120, to: 304.17, date: '2026-10-31' });
+});
+
+test('a price the history agrees with raises nothing', () => {
+  const points = [
+    { date: '2026-11-03', price: 16.99 },
+    { date: '2026-11-04', price: 16.99 },
+  ];
+  const check = verdictFrom('ADcIUjY', 16.99, points);
+  assert.equal(check.disagrees, false);
+  assert.equal(check.lastChange, null);
+});
+
+test('a product with no tracked history never claims the price was confirmed', () => {
+  const check = verdictFrom('untracked', 42, []);
+  assert.equal(check.disagrees, false);
+  assert.equal(check.trackedPrice, null);
+  assert.equal(check.trackedOn, null);
+});
+
+test('cents of float drift are not a disagreement', () => {
+  const check = verdictFrom('p', 19.99, [{ date: '2026-11-04', price: 19.990000000000002 }]);
+  assert.equal(check.disagrees, false);
 });

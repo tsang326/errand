@@ -12,8 +12,8 @@ import {
   type SelectionChangedEvent,
 } from 'ag-grid-community';
 import { baseColumns, defaultColDef, requirementColumns, MarkDot, money } from './grid';
-import { createOrder, getErrand, getHealth, runErrand } from './api';
-import type { CreatedOrder, Errand, Health, Row } from './types';
+import { checkPrices, createOrder, getErrand, getHealth, runErrand } from './api';
+import type { CreatedOrder, Errand, Health, Row, PriceCheck } from './types';
 import { Detail } from './Detail';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -218,6 +218,39 @@ export default function App() {
     [cart],
   );
   const unbuyable = selected.length - cart.length;
+
+  /**
+   * The ticked rows, re-read against Channel3's price-tracking history. The
+   * index can disagree with itself: /search offered a booster box at $120 that
+   * its own history had moved to $304.17 four days earlier. The shopper is the
+   * one who would have paid the difference, so the check runs here, before the
+   * PayPal button is pressed, and not as a sentence in a caveat.
+   */
+  const [priceChecks, setPriceChecks] = useState<PriceCheck[]>([]);
+  const ids = useMemo(() => cart.map(({ row }) => row.productId).join(','), [cart]);
+  useEffect(() => {
+    if (cart.length === 0) {
+      setPriceChecks([]);
+      return;
+    }
+    let live = true;
+    void checkPrices(cart)
+      .then((r) => {
+        // Ticking fast must not let an older answer land on a newer cart.
+        if (live) setPriceChecks(r.checks);
+      })
+      .catch(() => {
+        // A failed check is not a licence to imply the prices were confirmed.
+        if (live) setPriceChecks([]);
+      });
+    return () => {
+      live = false;
+    };
+    // Keyed on the ids, not on `cart`: the memo makes a new array on every
+    // render, and depending on it would re-check the same rows for ever.
+  }, [ids]);
+
+  const stale = useMemo(() => priceChecks.filter((c) => c.disagrees), [priceChecks]);
 
   const pay = useCallback(async () => {
     setBusy(true);
@@ -482,6 +515,27 @@ export default function App() {
 
       {errand && (
         <div className="cartbar">
+          {stale.length > 0 && (
+            <div className="stalebar">
+              <strong>
+                {stale.length === 1
+                  ? 'One ticked row is priced at a figure Channel3 itself has moved on from.'
+                  : `${stale.length} ticked rows are priced at figures Channel3 itself has moved on from.`}
+              </strong>{' '}
+              {stale.map((c) => {
+                const row = cart.find(({ row: r }) => r.productId === c.productId)?.row;
+                return (
+                  <span key={c.productId} className="staleline">
+                    {row ? `${row.title.slice(0, 48)}: ` : ''}
+                    the shortlist says {money(c.indexedPrice, row?.currency ?? 'USD')}, its price
+                    history says {money(c.trackedPrice!, row?.currency ?? 'USD')}
+                    {c.lastChange ? ` since ${c.lastChange.date}` : ''}.
+                  </span>
+                );
+              })}{' '}
+              The cart still totals what the shortlist showed. Open the listing before you approve.
+            </div>
+          )}
           <div className="cartbar-inner">
             <span className="carttotal num">
               {cart.length === 0 ? '$0.00' : money(cartTotal, cart[0]!.row.currency)}
@@ -491,7 +545,7 @@ export default function App() {
                 ? 'Tick the rows you want.'
                 : `${cart.length} item${cart.length > 1 ? 's' : ''} selected`}
               {unbuyable > 0 &&
-                ` · ${unbuyable} selected row${unbuyable > 1 ? 's' : ''} cannot be bought`}
+                ` · ${unbuyable} selected row${unbuyable > 1 ? 's' : ''} out of stock in the index`}
             </span>
             <button className="primary" onClick={pay} disabled={busy || cart.length === 0}>
               Pay with PayPal

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import { config, channel3Live, paypalConfigured } from '../config.js';
-import { searchProducts } from '../channel3/client.js';
+import { searchProducts, checkPrice, type PriceCheck } from '../channel3/client.js';
 import { cheapestOffer, bestCommission, type Product } from '../channel3/types.js';
 import {
   planSearch,
@@ -130,6 +130,10 @@ const errands = new Map<string, Errand>();
 
 const errandBody = z.object({ sentence: z.string().min(3).max(500) });
 
+const priceCheckBody = z.object({
+  lines: z.array(z.object({ productId: z.string().min(1), price: z.number() })).min(1).max(12),
+});
+
 const cartLine = z.object({
   productId: z.string().min(1),
   title: z.string().min(1),
@@ -242,6 +246,41 @@ export function buildApp() {
     const errand = errands.get(String(req.params.id ?? ''));
     if (!errand) return fail(res, 404, 'no such errand');
     return res.json(errand);
+  });
+
+  /**
+   * Re-reads the price of the rows the shopper ticked against Channel3's own
+   * price-tracking history, before any money is proposed. Two endpoints of the
+   * same index can disagree — /search served $120 for a booster box whose
+   * tracked history had moved to $304.17 four days earlier — and the shopper
+   * is the one who would have paid the difference. So the check runs where it
+   * matters rather than being described in a caveat.
+   */
+  app.post('/api/price-check', async (req: Request, res: Response) => {
+    const parsed = priceCheckBody.safeParse(req.body);
+    if (!parsed.success) return fail(res, 400, 'bad price-check request');
+    const lines = parsed.data.lines.slice(0, 12);
+    try {
+      const checks = await Promise.all(
+        lines.map((l) =>
+          // One bad history must not cost the shopper the whole check.
+          checkPrice(l.productId, l.price).catch(
+            (): PriceCheck => ({
+              productId: l.productId,
+              indexedPrice: l.price,
+              trackedPrice: null,
+              trackedOn: null,
+              lastChange: null,
+              disagrees: false,
+            }),
+          ),
+        ),
+      );
+      return res.json({ checks, tracked: checks.filter((c) => c.trackedPrice !== null).length });
+    } catch (err) {
+      const e = err as Error & { status?: number };
+      return fail(res, e.status ?? 502, 'price check failed', { detail: e.message });
+    }
   });
 
   app.post('/api/order', async (req: Request, res: Response) => {

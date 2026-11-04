@@ -14,6 +14,11 @@ export const config = {
   channel3: {
     apiKey: str('CHANNEL3_API_KEY'),
     baseUrl: str('CHANNEL3_BASE_URL', 'https://api.trychannel3.com/v1'),
+    // Price tracking is still on v0, so it cannot hang off baseUrl.
+    historyUrl: str(
+      'CHANNEL3_HISTORY_URL',
+      'https://api.trychannel3.com/v0/price-tracking/history',
+    ),
     // agentic mode has an LLM turn natural shopping language into real filters;
     // it is slower than keyword search, which is the right trade here because a
     // shopper types a sentence, not a filter tree.
