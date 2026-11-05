@@ -40,6 +40,13 @@ export type Row = {
   keyFeatures: string[];
   /** One mark per requirement, in the plan's order. Empty if never judged. */
   marks: Mark[];
+  /**
+   * Set only on the grid's pinned tally row: how the rows in the current view
+   * split on each requirement, in the plan's order. See tallyRow in grid.tsx.
+   */
+  tally?: Tally[];
+  /** On the tally row: how many rows the view holds, and how many hold everything. */
+  tallyOf?: { rows: number; clears: number; low: number | null; high: number | null };
   /** Derived from the marks on the server; shown, never recomputed here. */
   fit: number | null;
   why: string;
@@ -102,7 +109,7 @@ export type CapturedOrder = {
 
 /**
  * What PayPal itself says about a payment, read back from PayPal on demand.
- * The app's own numbers are easy to print; this is the version a judge can
+ * The app's own numbers are easy to print; this is the version a reader can
  * check against the PayPal dashboard, which is why it is on screen at all.
  */
 export type PassStatus = {
@@ -128,7 +135,6 @@ export type Health = {
   pass?: { runs: number; price: string; currency: string; held: number };
   webhooks?: { configured: boolean; seen: { at: string; type: string; orderId?: string; action: string }[] };
   rate?: {
-    perHour: number;
     freeRunsPerDay: number;
     paidPages: number;
     globalPerHour: number;
@@ -150,3 +156,6 @@ export type Pass = {
   captureId?: string;
   refundedAt?: string;
 };
+
+/** One requirement's split across the rows in view. */
+export type Tally = { yes: number; unclear: number; no: number };

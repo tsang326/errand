@@ -3,10 +3,9 @@ import assert from 'node:assert/strict';
 import { rateLimit, rateLimitAll, rateLimitBuckets, resetRateLimits } from './ratelimit.js';
 
 /**
- * The route this guards spends OpenAI credit and a Channel3 sponsor call on
- * every request, from a public URL with no login. The limiter is the only thing
- * between a loop in a browser tab and a drained key, so the three properties
- * below are the ones that matter: it lets a judge work, it stops a loop, and it
+ * The route this guards spends model credit and a Channel3 call on every
+ * request, from a public URL with no login. The three properties below are the
+ * ones that matter: it lets a visitor work, it stops a loop, and it
  * does not let one caller's loop lock out everyone else.
  */
 
@@ -59,7 +58,7 @@ test('a caller who rotates their key still meets the global ceiling', () => {
 test('the global ceiling leaves room for a normal day of judging', () => {
   resetRateLimits();
   const now = 1_000_000;
-  // three judges, three runs each: nobody should be turned away
+  // three visitors, three runs each: nobody should be turned away
   for (const who of ['judge-a', 'judge-b', 'judge-c']) {
     for (let i = 0; i < 3; i += 1) {
       assert.equal(rateLimit(who, 6, 3600_000, now).allowed, true);

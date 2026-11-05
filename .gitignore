@@ -7,5 +7,5 @@ dist/
 *.tsbuildinfo
 .taste-skill/
 
-# The plan and the prize strategy are written for me, not for a judge.
+# Private working notes.
 BRIEF.md

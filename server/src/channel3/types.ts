@@ -35,10 +35,13 @@ export type Product = {
   attributes: Record<string, string[]>;
   /** e.g. ['plastic']. Channel3 returns it and the app used to throw it away,
       which made the agent write "material not specified" about rows whose
-      material the index knew. `colors` is deliberately not carried: it comes
-      back as hex swatches with coverage percentages, which a model would have
-      to guess a colour name from. */
+      material the index knew. */
   materials: string[];
+  /** The photo's colours, named by rule from Channel3's hex swatches:
+      ['navy 62%', 'white 21%']. Channel3 measures them off the image, so they
+      describe the photo (packaging included), not a colour field the retailer
+      filled in. See colours.ts. */
+  colors: string[];
   keyFeatures: string[];
   variants: string[];
   offers: Offer[];

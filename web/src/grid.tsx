@@ -1,5 +1,5 @@
 import type { ColDef, ICellRendererParams, ValueGetterParams } from 'ag-grid-community';
-import type { Mark, Row } from './types';
+import type { Mark, Row, Tally } from './types';
 
 /** Money arrives in whole currency units; one formatter, used everywhere. */
 export const money = (value: number, currency: string): string =>
@@ -74,8 +74,94 @@ const MARK_WORD: Record<Mark['holds'], string> = {
   unclear: 'the index does not say',
 };
 
+/**
+ * The pinned row at the top of the ledger: the column read downwards instead of
+ * across. It is rebuilt from the rows AG Grid has left after every filter (the
+ * figure band, the quick filter, a column filter), so it always describes what
+ * is on screen, and it is pinned so it stays put while the rows sort under it.
+ */
+export function tallyRow(rows: readonly Row[], requirements: number): Row {
+  const tally: Tally[] = Array.from({ length: requirements }, () => ({ yes: 0, unclear: 0, no: 0 }));
+  let clears = 0;
+  let low: number | null = null;
+  let high: number | null = null;
+  for (const r of rows) {
+    r.marks.forEach((m, i) => {
+      const t = tally[i];
+      if (t) t[m.holds === 'yes' ? 'yes' : m.holds === 'no' ? 'no' : 'unclear'] += 1;
+    });
+    if (r.marks.length > 0 && r.marks.every((m) => m.holds === 'yes')) clears += 1;
+    if (r.price !== null) {
+      low = low === null ? r.price : Math.min(low, r.price);
+      high = high === null ? r.price : Math.max(high, r.price);
+    }
+  }
+  return {
+    // The id carries the figures. AG Grid refreshes a cell only when its value
+    // changes, and every value on this row is derived in its renderer, so under
+    // a fixed id a refiltered tally kept drawing the old numbers.
+    productId: `__tally:${rows.length}:${clears}:${tally.map((t) => `${t.yes}.${t.unclear}.${t.no}`).join(',')}`,
+    title: '',
+    brand: '',
+    imageUrl: '',
+    category: '',
+    categoryPath: [],
+    retailer: '',
+    url: '',
+    price: null,
+    compareAtPrice: null,
+    currency: rows[0]?.currency ?? 'USD',
+    inStock: true,
+    offerCount: 0,
+    offers: [],
+    commissionRate: 0,
+    attributes: {},
+    keyFeatures: [],
+    marks: [],
+    fit: null,
+    why: '',
+    misses: [],
+    tally,
+    tallyOf: { rows: rows.length, clears, low, high },
+  } as Row;
+}
+
+const tallyWords = (t: Tally): string =>
+  `${t.yes} hold · ${t.unclear} the index does not say · ${t.no} fail`;
+
+/** A requirement's split as one bar: the share that holds, is silent, fails. */
+function TallyCell({ t }: { t: Tally }) {
+  const n = t.yes + t.unclear + t.no;
+  if (n === 0) return <span className="dash">—</span>;
+  return (
+    <span className="tally" title={tallyWords(t)}>
+      <span className="tally-n num">
+        <b>{t.yes}</b>
+        <span className="tally-of">/{n}</span>
+      </span>
+      <span className="tally-bar" aria-hidden="true">
+        <span className="tb-yes" style={{ flexGrow: t.yes }} />
+        <span className="tb-unclear" style={{ flexGrow: t.unclear }} />
+        <span className="tb-no" style={{ flexGrow: t.no }} />
+      </span>
+    </span>
+  );
+}
+
 function ProductCell({ data }: ICellRendererParams<Row>) {
   if (!data) return null;
+  if (data.tallyOf) {
+    return (
+      <span className="tally-head">
+        <span>
+          <b className="num">{data.tallyOf.rows}</b> in view
+        </span>
+        <span className="tally-sub">
+          {data.tallyOf.clears} hold every requirement
+        </span>
+      </span>
+    );
+  }
   return (
     <div className="product">
       {data.imageUrl ? (
@@ -119,6 +205,16 @@ function ProductCell({ data }: ICellRendererParams<Row>) {
 
 function PriceCell({ data }: ICellRendererParams<Row>) {
   if (!data) return null;
+  if (data.tallyOf) {
+    const { low, high } = data.tallyOf;
+    if (low === null || high === null) return <span className="dash">—</span>;
+    return (
+      <span className="price tally-range">
+        {money(low, data.currency)}
+        {high > low && <span className="spread">to {money(high, data.currency)}</span>}
+      </span>
+    );
+  }
   // A missing price is a grey dash; a real price is never dressed up.
   if (data.price === null) return <span className="dash">—</span>;
   // No struck-through "was" price. Channel3's compareAtPrice is not a price
@@ -176,11 +272,15 @@ export function requirementColumns(
       return m ? (m.holds === 'yes' ? 2 : m.holds === 'unclear' ? 1 : 0) : -1;
     },
     tooltipValueGetter: (p) => {
+      const t = (p.data as Row | undefined)?.tally?.[i];
+      if (t) return `${text}: ${tallyWords(t)}`;
       const m = (p.data as Row | undefined)?.marks[i];
       if (!m) return 'the agent did not judge this row';
       return `${MARK_WORD[m.holds]}${m.note ? `: ${m.note}` : ''}`;
     },
     cellRenderer: ({ data }: ICellRendererParams<Row>) => {
+      const t = data?.tally?.[i];
+      if (t) return <TallyCell t={t} />;
       const m = data?.marks[i];
       if (!m) return <span className="dash">—</span>;
       return (
@@ -234,9 +334,12 @@ export function baseColumns(narrow = false, anyHold = true): ColDef<Row>[] {
       tooltipField: 'why',
       // Clamped rather than auto-height: a row that grows to fit its prose
       // breaks the pitch the ledger is read across.
-      cellRenderer: ({ value }: ICellRendererParams<Row>) => (
-        <span className="why2">{value as string}</span>
-      ),
+      cellRenderer: ({ value, data }: ICellRendererParams<Row>) =>
+        data?.tallyOf ? (
+          <span className="tally-note">Each bar: holds, the index does not say, fails</span>
+        ) : (
+          <span className="why2">{value as string}</span>
+        ),
     },
     // Not on screen - the retailer's name in the product cell is the link -
     // but the CSV is useless without somewhere to go, so it rides along. It
