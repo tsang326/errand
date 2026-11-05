@@ -234,10 +234,14 @@ export async function refundCapture(
     { amount: { value: amount, currency_code: currency } },
     requestId,
   );
+  // PayPal's refund body may come back without the amount, which left the
+  // screen saying a refund happened without saying how much. What we asked for
+  // is what was refunded — a refund that did not return this amount throws
+  // rather than reaching here — so it is the honest fallback.
   return {
     id: refund.id ?? '',
     status: refund.status ?? 'UNKNOWN',
-    ...(refund.amount?.value ? { amount: refund.amount.value } : {}),
-    ...(refund.amount?.currency_code ? { currency: refund.amount.currency_code } : {}),
+    amount: refund.amount?.value ?? amount,
+    currency: refund.amount?.currency_code ?? currency,
   };
 }
