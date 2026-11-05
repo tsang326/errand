@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildOrderPayload, type CartLine } from './orders.js';
+import { buildOrderPayload, refundCapture, type CartLine } from './orders.js';
 
 const line = (over: Partial<CartLine> = {}): CartLine => ({
   productId: 'I8Kcjj2',
@@ -71,4 +71,25 @@ test('the checkout says who is being paid, and asks for no address', () => {
   assert.equal(ctx.brand_name, 'Errand');
   assert.equal(ctx.shipping_preference, 'NO_SHIPPING');
   assert.equal(ctx.locale, 'en-US');
+});
+
+test('a refund says how much, even when PayPal does not', async () => {
+  const real = globalThis.fetch;
+  const bodies: Record<string, unknown> = {
+    '/v1/oauth2/token': { access_token: 'tok', expires_in: 3000 },
+    '/refund': { id: 'RF-1', status: 'COMPLETED' },   // no amount in the body
+  };
+  globalThis.fetch = (async (url: string | URL | Request) => {
+    const href = String(url);
+    const key = href.includes('oauth2') ? '/v1/oauth2/token' : '/refund';
+    return new Response(JSON.stringify(bodies[key]), { status: 201, headers: { 'content-type': 'application/json' } });
+  }) as typeof fetch;
+  try {
+    const done = await refundCapture('CAP-1', '2.80', 'USD', 'req-1');
+    assert.equal(done.amount, '2.80');
+    assert.equal(done.currency, 'USD');
+    assert.equal(done.status, 'COMPLETED');
+  } finally {
+    globalThis.fetch = real;
+  }
 });
