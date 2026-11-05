@@ -76,9 +76,10 @@ export function grantPass(captured: CapturedOrder): Pass {
 }
 
 /**
- * Spends one errand. Called only once the errand has actually been produced:
- * a run that dies on a Channel3 429 or a model timeout delivered nothing, and
- * charging for it would be the same mistake in a smaller shape.
+ * Spends one errand. Taken at the gate, not at the end: an errand takes most
+ * of a minute, and a refund that lands inside that minute used to pay back a
+ * run the agent then went on to deliver. A run that dies upstream is given
+ * back with releaseRun, so nothing is charged for work that never arrived.
  */
 export function spendRun(orderId: string): boolean {
   const pass = passes.get(orderId);
@@ -86,6 +87,12 @@ export function spendRun(orderId: string): boolean {
   if (pass.used >= pass.runs) return false;
   pass.used += 1;
   return true;
+}
+
+/** Gives back a run reserved for an errand that never got delivered. */
+export function releaseRun(orderId: string): void {
+  const pass = passes.get(orderId);
+  if (pass && pass.used > 0) pass.used -= 1;
 }
 
 /** True when the pass can pay for one more errand. Does not spend it. */

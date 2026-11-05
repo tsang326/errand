@@ -275,7 +275,10 @@ export default function App() {
       setBusy(false);
       getHealth().then(setHealth).catch(() => undefined);
     }
-  }, [sentence]);
+    // `pass` belongs in here: it arrives after the first render (restored from
+    // storage, or bought in another tab), and a callback that still closed over
+    // the old value sent a paid shopper's errand as a free one.
+  }, [sentence, pass]);
 
   const rows = errand?.rows ?? [];
   const requirements = errand?.plan.requirements ?? [];

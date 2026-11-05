@@ -10,6 +10,7 @@ import {
   readWebhookHeaders,
   webhookConfigured,
   orderIdOf,
+  captureIdOf,
   noteWebhook,
   webhookNotes,
   type WebhookEvent,
@@ -49,6 +50,7 @@ import {
   passesHeld,
   refundDue,
   spendRun,
+  releaseRun,
 } from '../passes.js';
 
 /** One row as the grid consumes it: the product, its best offer, the agent's verdict. */
@@ -324,6 +326,11 @@ const freeGate = (caller: string, device: string) =>
     if (!parsedEarly.success) return fail(res, 400, 'sentence must be 3-500 characters');
     const { sentence } = parsedEarly.data;
 
+    // The run is taken before the work, not after it. An errand takes most of
+    // a minute, and a refund asked for inside that minute used to pay back a
+    // run that the agent then delivered anyway.
+    if (paying && passId) spendRun(passId);
+
     try {
       const plan = await planSearch(sentence);
       // What a pass actually buys: the same agent over a wider field. A free
@@ -357,12 +364,11 @@ const freeGate = (caller: string, device: string) =>
         ranking: { source: ranking.source, costUsd: Number(ranking.costUsd.toFixed(4)) },
       };
       errands.set(errand.id, errand);
-      // Spent here and not at the gate: a run that died upstream delivered
-      // nothing, and the shopper keeps the errand they paid for.
-      if (paying && passId) spendRun(passId);
 
       return res.json({ ...errand, ...(passId ? { pass: passViewOf(passId) } : {}) });
     } catch (err) {
+      // Nothing was delivered, so nothing is owed: the reserved run goes back.
+      if (paying && passId) releaseRun(passId);
       const e = err as Error & { code?: string; status?: number };
       if (e.code === 'ai_budget_spent') return fail(res, 429, e.message, { code: e.code });
       // An upstream deadline carries its own status (504/502); keeping it tells
@@ -647,7 +653,7 @@ const freeGate = (caller: string, device: string) =>
       } else if (type === 'PAYMENT.CAPTURE.REFUNDED' || type === 'PAYMENT.CAPTURE.REVERSED') {
         // A refund can start on PayPal's side, not ours, and then the capture
         // is all the notification names.
-        const captureId = event.resource?.id;
+        const captureId = captureIdOf(event);
         const pass =
           (orderId ? getPass(orderId) : undefined) ??
           (captureId ? findPassByCapture(captureId) : undefined);
