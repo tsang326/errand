@@ -87,38 +87,6 @@ export const getHealth = async (): Promise<Health> => {
   return (await res.json()) as Health;
 };
 
-/** Cart lines are built from grid rows, so the price PayPal sees is the price shown. */
-export const createOrder = (
-  rows: { row: Row; quantity: number }[],
-  errandId: string,
-): Promise<CreatedOrder> =>
-  post<CreatedOrder>('/api/order', {
-    lines: rows.map(({ row, quantity }) => ({
-      productId: row.productId,
-      title: row.title,
-      merchant: row.retailer,
-      unitPrice: row.price ?? 0,
-      quantity,
-      currency: row.currency,
-    })),
-    // The errand id rides along so the shortlist is still on screen when PayPal
-    // sends the shopper back: PayPal appends its own token to this URL and drops
-    // the fragment, so the id cannot travel in the hash the way it does
-    // everywhere else in the app.
-    returnUrl: `${window.location.origin}/paid?e=${encodeURIComponent(errandId)}`,
-    cancelUrl: `${window.location.origin}/cancelled?e=${encodeURIComponent(errandId)}`,
-  });
-
-/**
- * Takes the money for an order the shopper has approved.
- *
- * This is the half that was missing: the app created orders and sent people to
- * PayPal, and whatever they did there, the app never asked what happened. An
- * approved order that is never captured charges nobody.
- */
-export const captureOrder = (orderId: string): Promise<CapturedOrder> =>
-  post<CapturedOrder>(`/api/order/${encodeURIComponent(orderId)}/capture`, {});
-
 /**
  * Reopens an errand the server still holds. The id lives in the URL hash, so a
  * shortlist can be linked to and reloaded without re-running the search — which

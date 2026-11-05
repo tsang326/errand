@@ -174,22 +174,7 @@ const priceCheckBody = z.object({
   lines: z.array(z.object({ productId: z.string().min(1), price: z.number() })).min(1).max(12),
 });
 
-const cartLine = z.object({
-  productId: z.string().min(1),
-  title: z.string().min(1),
-  merchant: z.string(),
-  unitPrice: z.number().positive(),
-  quantity: z.number().int().positive().max(20),
-  currency: z.string().length(3),
-});
-
 const passOrderBody = z.object({
-  returnUrl: z.string().url().optional(),
-  cancelUrl: z.string().url().optional(),
-});
-
-const orderBody = z.object({
-  lines: z.array(cartLine).min(1).max(10),
   returnUrl: z.string().url().optional(),
   cancelUrl: z.string().url().optional(),
 });
@@ -413,40 +398,6 @@ const freeGate = (caller: string, device: string) =>
     } catch (err) {
       const e = err as Error & { status?: number };
       return fail(res, e.status ?? 502, 'price check failed', { detail: e.message });
-    }
-  });
-
-  app.post('/api/order', async (req: Request, res: Response) => {
-    const parsed = orderBody.safeParse(req.body);
-    if (!parsed.success) {
-      return fail(res, 400, 'bad cart', { detail: parsed.error.issues.slice(0, 4) });
-    }
-    if (!paypalConfigured()) return fail(res, 503, 'PayPal is not configured on this deployment');
-
-    const { lines, returnUrl, cancelUrl } = parsed.data;
-    try {
-      const order = await createOrder(
-        lines as CartLine[],
-        returnUrl ?? `${config.publicUrl}/paid`,
-        cancelUrl ?? `${config.publicUrl}/cancelled`,
-      );
-      return res.json(order);
-    } catch (err) {
-      return fail(res, 502, (err as Error).message.slice(0, 400));
-    }
-  });
-
-  app.post('/api/order/:id/capture', async (req: Request, res: Response) => {
-    if (!paypalConfigured()) return fail(res, 503, 'PayPal is not configured on this deployment');
-    const orderId = String(req.params.id ?? '');
-    // The idempotency key is derived from the order, not minted per request, so
-    // a double-clicked capture replays the first answer instead of charging
-    // twice.
-    try {
-      const captured = await captureOrder(orderId, `capture-${orderId}`);
-      return res.json(captured);
-    } catch (err) {
-      return fail(res, 502, (err as Error).message.slice(0, 400));
     }
   });
 
