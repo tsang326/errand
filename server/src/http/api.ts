@@ -587,6 +587,14 @@ const freeGate = (caller: string, device: string) =>
           ...(capture?.amount?.currency_code ? { currency: capture.amount.currency_code } : {}),
         },
         ...(held ? { pass: passView(held) } : {}),
+        // What PayPal told this server about the order on its own, oldest
+        // first. Only notifications whose signature PayPal verified are ever
+        // noted, so this is the evidence that the capture did not depend on
+        // the shopper's tab coming back.
+        webhooks: webhookNotes()
+          .filter((n) => n.orderId === orderId)
+          .map(({ at, type, action }) => ({ at, type, action }))
+          .reverse(),
       });
     } catch (err) {
       return fail(res, 502, (err as Error).message.slice(0, 400));

@@ -123,6 +123,8 @@ export type PassStatus = {
     currency?: string;
   };
   pass?: Pass;
+  /** Signature-verified PayPal notifications this server received for the order, oldest first. */
+  webhooks?: { at: string; type: string; action: string }[];
 };
 
 export type Health = {

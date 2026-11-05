@@ -836,6 +836,11 @@ button, .chipbtn, .figure, .ghost, .count { cursor: pointer; }
   margin-right: 8px;
 }
 .paypalsays .says-bad { color: var(--negative); }
+/* The webhooks get their own line: they are what PayPal told the server, which
+   is a different witness from the order read back above them. */
+.paypalsays .says-hooks { display: block; margin-top: 2px; }
+.paypalsays .hook { margin-right: 14px; word-break: normal; }
+.paypalsays .hook .num { color: var(--text); }
 
 /* One line under the finding: how wide the search that produced this shortlist
    actually was. It is the difference a pass pays for, so it is stated on the
