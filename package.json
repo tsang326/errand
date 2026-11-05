@@ -2,7 +2,7 @@
   "name": "errand",
   "private": true,
   "version": "0.1.0",
-  "description": "An AI shopping agent that searches Channel3's retailer index, judges every product against the requirements in your sentence, and pays with PayPal once you approve",
+  "description": "An AI shopping agent that searches Channel3's retailer index and marks every product against the requirements in your sentence. A PayPal pass pays for wider searches.",
   "license": "MIT",
   "packageManager": "pnpm@9.12.0",
   "scripts": {
