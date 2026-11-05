@@ -1,19 +1,17 @@
 /**
- * A per-IP ceiling on the one route that spends money.
+ * Fixed-window counters for the free path of the one route that spends money.
  *
- * `/api/errand` is unauthenticated and CORS is open, because the whole point is
- * that a judge can type a sentence without an account. That also means a loop
- * from any browser tab spends ~$0.033 of OpenAI credit and one Channel3 call per
- * iteration, on keys shared with three other live entries — and keeping the
- * instance awake burns the account's free Render hours, which Interlock is also
- * drawing from. The in-process spend meter does not stop that: Render's free plan
- * sleeps after 15 minutes idle, so every cold start hands the caller a fresh
- * budget. This does stop it, in the only place the cost is actually incurred.
+ * `/api/errand` is unauthenticated and CORS is open, because the point is that
+ * a visitor can type a sentence without an account. That also means a loop from
+ * any browser tab spends about $0.033 of model credit and one Channel3 call per
+ * iteration. Free errands are therefore counted per device and per address per
+ * day, and against one hourly ceiling shared by everyone (config.ts, `limits`).
+ * Paid errands are bounded by the runs on the pass instead.
  *
  * Deliberately in memory, like everything else in this server: a restart gives a
  * blocked caller a clean slate, which is the right failure direction for a demo a
- * judge might reload. The expensive thing a restart resets is the *spend* ceiling,
- * and that is set at the OpenAI project level instead, where it survives.
+ * visitor might reload. Money is bounded separately, by the daily ceiling in
+ * ai/meter.ts.
  */
 
 type Window = { count: number; resetAt: number };

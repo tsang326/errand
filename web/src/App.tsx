@@ -9,9 +9,10 @@ import {
   type GridApi,
   type GridReadyEvent,
   type IRowNode,
+  type RowClassParams,
   type SelectionChangedEvent,
 } from 'ag-grid-community';
-import { baseColumns, defaultColDef, requirementColumns, MarkDot, money } from './grid';
+import { baseColumns, defaultColDef, requirementColumns, tallyRow, MarkDot, money } from './grid';
 import {
   buyPass,
   capturePass,
@@ -135,7 +136,7 @@ export default function App() {
   /**
    * What PayPal says, as opposed to what this app says. Fetched only when
    * asked: it is one live call to PayPal, and its value is that the shopper
-   * (or a judge) can hold the capture id and invoice number on screen against
+   * (or anyone reviewing it) can hold the capture id and invoice number on screen against
    * the same payment in the PayPal dashboard.
    */
   const [checking, setChecking] = useState(false);
@@ -305,6 +306,44 @@ export default function App() {
     api.current?.onFilterChanged();
   }, [band]);
 
+  /**
+   * The pinned tally row, rebuilt on AG Grid's modelUpdated from whatever rows
+   * survive every filter: the figure band, the quick filter and the column
+   * filters all feed it, so the tally and the rows under it never disagree.
+   * (filterChanged is too early: it fires before the row model has refiltered.)
+   */
+  const [tally, setTally] = useState<Row[]>([]);
+  const retally = useCallback(() => {
+    const g = api.current;
+    if (!g || requirements.length === 0) return setTally([]);
+    const inView: Row[] = [];
+    g.forEachNodeAfterFilter((n) => {
+      if (n.data) inView.push(n.data);
+    });
+    const next = tallyRow(inView, requirements.length);
+    // modelUpdated fires on sorts as well; a sort does not change the tally,
+    // and a fresh object each time would re-render the pinned row for nothing.
+    setTally((prev) =>
+      prev[0] && JSON.stringify(prev[0].tally) === JSON.stringify(next.tally) &&
+      JSON.stringify(prev[0].tallyOf) === JSON.stringify(next.tallyOf)
+        ? prev
+        : [next],
+    );
+  }, [requirements.length]);
+  useEffect(() => {
+    retally();
+  }, [rows, retally]);
+
+  const rowClass = useCallback(
+    (p: RowClassParams<Row>) =>
+      p.node.rowPinned
+        ? 'tallyrow'
+        : p.data && p.data.marks.length > 0 && p.data.marks.every((m) => m.holds === 'yes')
+          ? 'clearsrow'
+          : undefined,
+    [],
+  );
+
   const columns = useMemo<(ColDef<Row> | ColGroupDef<Row>)[]>(() => {
     const [product, ...rest] = baseColumns(narrow, counts.clears > 0).filter(
       (c) => !(narrow && c.field === 'why'),
@@ -421,7 +460,9 @@ export default function App() {
                 <span className="num">
                   <span className="k">Model spend </span>
                   <b>${health.ai.spentUsd.toFixed(3)}</b>
-                  <span className="k since"> since this instance woke</span>
+                  <span className="k since">
+                    {' '}of ${health.ai.spendBudgetUsd.toFixed(2)} today (UTC)
+                  </span>
                 </span>
               </>
             )}
@@ -674,7 +715,7 @@ export default function App() {
                 />
                 <button
                   className="ghost"
-                  onClick={() => api.current?.exportDataAsCsv({ fileName: 'errand.csv', allColumns: true })}
+                  onClick={() => api.current?.exportDataAsCsv({ fileName: 'errand.csv', allColumns: true, skipPinnedTop: true })}
                 >
                   Export what is shown
                 </button>
@@ -734,10 +775,15 @@ export default function App() {
                   getRowId={(p) => p.data.productId}
                   isExternalFilterPresent={isExternalFilterPresent}
                   doesExternalFilterPass={doesExternalFilterPass}
+                  pinnedTopRowData={tally}
+                  getRowHeight={(p) => (p.node.rowPinned ? 54 : undefined)}
+                  getRowClass={rowClass}
                   onGridReady={(e: GridReadyEvent<Row>) => {
                     api.current = e.api;
+                    retally();
                   }}
-                  onRowDoubleClicked={(e) => e.data && setOpen(e.data)}
+                  onModelUpdated={retally}
+                  onRowDoubleClicked={(e) => !e.node.rowPinned && e.data && setOpen(e.data)}
                   tooltipShowDelay={200}
                   overlayNoRowsTemplate={'<span style="color:#6b6b6b">Nothing in this view.</span>'}
                 />
@@ -782,7 +828,7 @@ export default function App() {
               <span className="cartnote">
                 {refunded
                   ? `Refunded ${refunded}. The free errands still work.`
-                  : `${freeRuns} free errands a day from this address. A pass covers ${health?.pass?.runs ?? 15} more, each reading ${paidPages}\u00d7 as much of the index.`}
+                  : `${freeRuns} free errands a day on this device. A pass covers ${health?.pass?.runs ?? 15} more, each reading ${paidPages}\u00d7 as much of the index.`}
               </span>
               <button className="primary" onClick={() => setOffering(true)} disabled={buying}>
                 Buy a pass &middot; ${health?.pass?.price ?? '3.00'}

@@ -1,4 +1,5 @@
 import { config, channel3Live } from '../config.js';
+import { nameSwatches } from './colours.js';
 import type { Offer, Product, SearchResult } from './types.js';
 import { fixtureSearch } from './fixtures.js';
 import { DEADLINE_MS, fetchWithDeadline } from '../net.js';
@@ -213,6 +214,7 @@ export function normalise(raw: unknown): Product[] {
           typeof p === 'object' && p !== null ? [str((p as Record<string, unknown>).title)] : []),
         attributes,
         materials: Array.isArray(r.materials) ? r.materials.map((m) => String(m)) : [],
+        colors: nameSwatches(r.colors),
         keyFeatures: Array.isArray(r.key_features) ? r.key_features.map((f) => String(f)) : [],
         variants: Array.isArray(r.variants) ? r.variants.map((v) => String(v)) : [],
         offers,

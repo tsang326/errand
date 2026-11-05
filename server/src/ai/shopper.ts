@@ -61,7 +61,10 @@ Reply with JSON only: {"query": string, "max_price": number|null, "requirements"
 - "max_price" is a per-item ceiling in the currency the shopper used, or null.
 - "requirements" are the checkable constraints the shopper stated, one per
   string, in their own words. A delivery date or a recipient's age is a
-  requirement even when a product search cannot filter on it.`;
+  requirement even when a product search cannot filter on it.
+- Every attribute the shopper stated (colour, material, size, edition, condition,
+  care, power source) is a requirement, even when it also goes into "query".
+- A price ceiling goes in "max_price" only. Never repeat it as a requirement.`;
 
 const SYSTEM_RANK = `You judge each product against the shopper's own requirements, one at a time.
 
@@ -79,6 +82,9 @@ The requirements arrive as a numbered list. For every product reply with one ent
   temperature not stated". Under 90 characters. Never a sales line.
 - "why" is one sentence naming the concrete reason this product is on the list.
   If the only reason is that it matched the words, say that.
+- "photo_colours" are colours measured off the product photo, with their share
+  of it. They can show packaging or a prop, so a colour that covers most of the
+  photo can support "yes"; one that only appears in it is not enough for "no".
 - Judge only from the fields given. Never invent a feature, a delivery date or a
   review.
 
@@ -125,6 +131,16 @@ async function chat(system: string, user: string): Promise<{ text: string; cost:
 const hasModel = (): boolean => config.openai.apiKey.length > 0;
 
 /**
+ * True for a requirement that only restates a price ceiling ("under 150
+ * dollars", "$40 or less"). Once the ceiling is a search filter, every row on
+ * screen already meets it, so a column grading it is all ticks and the screen
+ * would contradict its own line "as a filter, not a column". The prompt says
+ * not to do this; this is the check for when the model does it anyway.
+ */
+export const isPriceCeiling = (req: string): boolean =>
+  /\d/.test(req) && /(\$|€|£|\busd\b|dollars?|bucks|\bprice\b|\bcost|budget)/i.test(req);
+
+/**
  * Turns the shopper's sentence into a Channel3 query. With no model configured
  * the sentence is passed through unchanged and labelled `passthrough`, which
  * searches worse but never silently pretends a plan was made.
@@ -143,11 +159,14 @@ export async function planSearch(sentence: string): Promise<Plan> {
     return { query: sentence, requirements: [], source: 'passthrough' };
   }
   const max = Number(parsed.max_price);
+  const ceiling = Number.isFinite(max) && max > 0;
   return {
     query: typeof parsed.query === 'string' && parsed.query.trim() ? parsed.query : sentence,
-    ...(Number.isFinite(max) && max > 0 ? { maxPrice: max } : {}),
+    ...(ceiling ? { maxPrice: max } : {}),
     requirements: Array.isArray(parsed.requirements)
-      ? parsed.requirements.map(String).filter((r) => r.length > 0)
+      ? parsed.requirements
+          .map(String)
+          .filter((r) => r.length > 0 && !(ceiling && isPriceCeiling(r)))
       : [],
     source: 'model',
   };
@@ -168,6 +187,9 @@ export function rankingInput(products: readonly Product[]): unknown[] {
       // 24 of these still fit one request.
       description: p.description.slice(0, 400),
       materials: p.materials,
+      // Named from the photo, not stated by the retailer: a hint, and the
+      // prompt says so.
+      photo_colours: p.colors,
       attributes: p.attributes,
       key_features: p.keyFeatures.slice(0, 6),
       variants: p.variants,

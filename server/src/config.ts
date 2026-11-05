@@ -51,9 +51,9 @@ export const config = {
   },
 
   ai: {
-    // A hard ceiling on what the model can cost this process. Judging runs
-    // 1-15 December on a public URL, so the thing to bound is what a stranger
-    // can spend, and money is the one budget here that does not refill.
+    // A hard ceiling on what the model can cost per UTC day. The URL is public
+    // and needs no login, so the thing to bound is what a stranger can spend
+    // in a day. See ai/meter.ts.
     spendBudgetUsd: Number(str('ERRAND_AI_SPEND_USD', '3.00')),
     // How many products one ranking call is allowed to read. It matches
     // CHANNEL3_LIMIT on purpose: a row the model never read shows an empty
@@ -80,21 +80,13 @@ export const config = {
     currency: str('PASS_CURRENCY', 'USD'),
   },
   limits: {
-    // Per-IP ceiling on /api/errand, the only route that spends money. Thirty
-    // runs an hour is $1 of model spend from one caller: more than a judge
-    // trying every example sentence will reach (each run takes ~20 s to read),
-    // and little enough that a loop from a browser tab stops being worth
-    // writing. Six was the first figure here and was tighter than a judge
-    // exploring the thing deserves. See http/ratelimit.ts.
-    errandPerHour: Number(str('ERRAND_RATE_PER_HOUR', '30')),
-    // Shared by everyone, so a caller who rotates X-Forwarded-For to dodge the
-    // per-caller ceiling still meets a wall. It has to sit well above the
-    // per-IP figure or one caller holds the whole pool and the second judge of
-    // the hour is turned away: 90 is three callers at their own ceiling, about
-    // $3 an hour, and the project's spend cap is what bounds the day.
+    // Free errands per hour, shared by everyone, so a caller who rotates
+    // X-Forwarded-For to get fresh per-address buckets still meets a wall. 90
+    // is about $3 of model spend an hour; the daily spend ceiling above is what
+    // bounds the day.
     errandGlobalPerHour: Number(str('ERRAND_RATE_GLOBAL_PER_HOUR', '90')),
     errandWindowMs: Number(str('ERRAND_RATE_WINDOW_MS', String(60 * 60 * 1000))),
-    // Errands an address gets without paying. A judge has to be able to type a
+    // Errands a device gets without paying. A visitor has to be able to type a
     // sentence and see the thing work without reaching for a wallet, and five
     // runs is every example sentence on the page plus two of their own.
     //

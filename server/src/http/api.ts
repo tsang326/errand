@@ -239,7 +239,6 @@ export function buildApp() {
       pass: { runs: passRuns(), price: passPrice(), currency: passCurrency(), held: passesHeld() },
       webhooks: { configured: webhookConfigured(), seen: webhookNotes().slice(0, 5) },
       rate: {
-        perHour: config.limits.errandPerHour,
         freeRunsPerDay: config.limits.freeRuns,
         freeRunsPerAddressDay: config.limits.freeRunsPerAddress,
         paidPages: config.channel3.paidPages,
@@ -270,8 +269,7 @@ const freeGate = (caller: string, device: string) =>
     const passId = parsedEarly.success ? parsedEarly.data.pass : undefined;
     // A pass that still has runs on it skips the free ceiling, because the
     // ceiling exists to stop strangers spending my money and this caller is
-    // spending their own. It does not skip the global one: that is the backstop
-    // against a loop, paid or not.
+    // spending their own. It skips the global hourly one too (see below).
     const paying = !!passId && hasRunLeft(passId);
     if (passId && !paying) {
       const known = getPass(passId);

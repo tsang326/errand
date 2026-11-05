@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { planSearch, rankProducts, parseVerdicts, rankingInput, fitOf } from './shopper.js';
+import { planSearch, rankProducts, parseVerdicts, rankingInput, fitOf, isPriceCeiling } from './shopper.js';
 import { costOf, record, resetMeter, meterState, budgetLeft, assertBudget } from './meter.js';
 import { fixtureSearch } from '../channel3/fixtures.js';
 
@@ -100,12 +100,27 @@ test('an unlisted model is metered at the dearest known rate, not at zero', () =
   assert.equal(unknown, 2);
 });
 
-test('the spend ceiling blocks further calls and does not refill', () => {
+test('the spend ceiling blocks further calls for the rest of the day', () => {
   resetMeter();
   assert.doesNotThrow(assertBudget);
   record('gpt-4.1', { prompt_tokens: 10_000_000, completion_tokens: 0 });
   assert.ok(budgetLeft() < 0);
-  assert.throws(assertBudget, /budget for this deployment is spent/);
+  assert.throws(assertBudget, /model budget for this demo is spent/);
   assert.equal(meterState().modelCalls, 1);
   resetMeter();
+});
+
+test('a requirement that only restates the price ceiling is recognised', () => {
+  for (const r of ['under 150 dollars', '$40 or less', 'price under 120', 'no more than 60 USD']) {
+    assert.equal(isPriceCeiling(r), true, r);
+  }
+  for (const r of ['in navy', 'machine washable', 'for a 6-year-old', 'under 2 kg', 'arrives by Friday 14th']) {
+    assert.equal(isPriceCeiling(r), false, r);
+  }
+});
+
+test('rankingInput carries the photo colours, named', () => {
+  const [p] = fixtureSearch('lamp', 24, 'test').products;
+  const input = rankingInput([{ ...p!, colors: ['navy 62%'] }]) as { photo_colours: string[] }[];
+  assert.deepEqual(input[0]!.photo_colours, ['navy 62%']);
 });

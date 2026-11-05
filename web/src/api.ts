@@ -40,7 +40,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   }
   const json = (await res.json()) as T & { error?: string; detail?: string };
   // `detail` is the sentence written for a person; `error` is the machine code.
-  // Showing "rate_limited" to a judge explains nothing.
+  // Showing "rate_limited" to a visitor explains nothing.
   if (!res.ok) throw new Error(json.detail ?? json.error ?? `${path} failed (${res.status})`);
   return json;
 }

@@ -72,10 +72,11 @@ shown at all, and the caveat above the grid says which number the price is.
 ## How it works
 
 ```
-sentence ──▶ planSearch ──▶ Channel3 /v1/search ──▶ rankProducts ──▶ ledger
-            (gpt-4.1)       mode: agentic, 24 rows   (gpt-4.1)       │
-                                                                     ▼
-                                              ticked rows ──▶ PayPal Orders v2
+sentence ──▶ planSearch ──▶ Channel3 /v1/search ──▶ rankProducts ──▶ ledger ──▶ retailer link
+            (gpt-4.1)       mode: agentic, 24 rows   (gpt-4.1)                  (you buy there)
+
+$3.00 pass ──▶ PayPal Orders v2 ──▶ capture (return URL or verified webhook) ──▶ 15 wider errands
+                                                    unspent runs ──▶ Payments v2 refund
 ```
 
 1. **`planSearch`** turns the sentence into a query, a price ceiling, and the list of
@@ -85,17 +86,18 @@ sentence ──▶ planSearch ──▶ Channel3 /v1/search ──▶ rankProduc
    fixtures and labels every response `origin: "fixture"`, so a demo is never a grid of
    invented products that looks exactly like a grid of real ones.
 3. **`rankProducts`** reads each product's index entry and marks it once per requirement,
-   with a note. It is given the description and materials as well as the structured fields,
-   so a mark of "the index does not say" reports Channel3's silence rather than ours. All
+   with a note. It is given the description, materials and the photo's colours (named from
+   Channel3's hex swatches, `channel3/colours.ts`) as well as the structured fields, so a mark
+   of "the index does not say" reports Channel3's silence rather than ours. All
    24 rows are judged, not a top slice: a row nobody read would show an empty ledger and the
    counts on screen would stop adding up.
 4. **PayPal Orders v2** sells a pass: one line item, priced by the server (the browser sends
    only where to come back to), with `PAY_NOW` so the shopper lands on payment rather than a
    review page. PayPal sends the shopper back with the order token, the app captures it, and
    only a `COMPLETED` capture becomes a pass. An order created and never captured charges
-   nobody, so the round trip is the only part that proves the money moved. An errand that
-   fails upstream is not charged for — the run is spent after the shortlist exists, not
-   before — and **Payments v2 refunds** the unspent part of a pass on request, to the cent.
+   nobody, so the round trip is the only part that proves the money moved. A run is taken
+   from the pass when the errand starts and given back if the errand fails upstream, so a
+   refund asked for mid-errand cannot pay back a run that is then delivered; and **Payments v2 refunds** the unspent part of a pass on request, to the cent.
    Five errands a day are free per device, and twenty-five per address, so the thing can be
    tried without paying. Two ceilings because the address is shared and the device is not: an
    office or a mobile carrier is hundreds of people behind one address, and one allowance
@@ -131,8 +133,31 @@ Every outbound call has a deadline (Channel3 25s, OpenAI 30s, PayPal 20s) and fa
 with a reason. On a free hosting plan the common failure is not a wrong answer, it is a
 request that hangs silently.
 
-The model's spend is capped per process (`ERRAND_AI_SPEND_USD`, default `$3.00`). One errand
-costs about **$0.033** at gpt-4.1 rates, so the cap is about 90 runs.
+The model's spend is capped per UTC day (`ERRAND_AI_SPEND_USD`, default `$3.00`), counted
+in memory and reset at midnight UTC. One errand costs about **$0.033** at gpt-4.1 rates, so
+the cap is about 90 runs a day.
+
+## The ledger is an AG Grid
+
+The screen is one AG Grid Community grid (`web/src/grid.tsx`, `web/src/App.tsx`), and each
+grid feature carries a piece of the product:
+
+- **One column per requirement, generated from the plan**, under a column group headed
+  "Judged against your words". The header is the buyer's own phrase (`wrapHeaderText`,
+  `autoHeaderHeight`), the cell a custom renderer drawing holds / the index does not say /
+  fails, and the cell tooltip quotes what the index entry said.
+- **A pinned tally row** reads each requirement column downwards: how many rows hold it, as
+  a count and a three-part bar, plus the price range of the rows in view. It is rebuilt on
+  `modelUpdated` from `forEachNodeAfterFilter`, so the figure band, the quick filter and
+  the column filters all change it, and it stays put while the rows sort under it.
+- **The figure band is an external filter** (`isExternalFilterPresent` /
+  `doesExternalFilterPass`): Found, Hold everything, Fall short.
+- **Sorting a requirement column** gathers the rows that fail it at one end (a value getter
+  maps the marks to 2 / 1 / 0); rows that hold everything carry a rule at their left edge
+  (`getRowClass`).
+- **Quick filter, text and number column filters, and CSV export** of what is shown, with
+  the hidden listing URL column included and the tally row left out.
+- `themeQuartz` with the app's own tokens, dark.
 
 ## Running it
 
@@ -155,7 +180,7 @@ For development, `pnpm dev` runs the API on `:8787` and Vite on `:5173`.
 | `PAYPAL_SANDBOX` | Defaults to `true`. Sandbox credentials against live PayPal fail |
 | `ERRAND_PUBLIC_URL` | PayPal sends the shopper back to `localhost:5173` |
 
-`pnpm test` runs 33 tests with no keys set; `pnpm typecheck` covers both packages.
+`pnpm test` runs 83 tests with no keys set; `pnpm typecheck` covers both packages.
 
 ## What is deliberately missing
 
