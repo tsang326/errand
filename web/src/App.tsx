@@ -863,6 +863,16 @@ export default function App() {
                     &middot; invoice <span className="num">{checked!.paypal.invoiceId}</span>
                   </span>
                 )}
+                {checked!.webhooks && checked!.webhooks.length > 0 && (
+                  <span className="says-hooks">
+                    <span className="says-tag">Webhooks, signature verified</span>
+                    {checked!.webhooks.map((w) => (
+                      <span key={w.at + w.type} className="hook">
+                        <span className="num">{w.at.slice(11, 19)}</span> {w.type} &rarr; {w.action}
+                      </span>
+                    ))}
+                  </span>
+                )}
               </>
             )}
           </div>
