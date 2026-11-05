@@ -64,3 +64,11 @@ test('PAY_NOW is asked for, so the shopper does not land on a review page', () =
   assert.equal(ctx.user_action, 'PAY_NOW');
   assert.equal(ctx.return_url, 'https://example.test/done');
 });
+
+test('the checkout says who is being paid, and asks for no address', () => {
+  const p = payload([line()]);
+  const ctx = p.payment_source.paypal.experience_context;
+  assert.equal(ctx.brand_name, 'Errand');
+  assert.equal(ctx.shipping_preference, 'NO_SHIPPING');
+  assert.equal(ctx.locale, 'en-US');
+});
