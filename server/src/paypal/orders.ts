@@ -134,6 +134,15 @@ export function buildOrderPayload(
       paypal: {
         experience_context: {
           user_action: 'PAY_NOW' as const,
+          // Whose checkout the payer thinks they are on. Without it PayPal
+          // shows the sandbox account's own name — "Test Store" — which is
+          // the wrong answer to "who am I paying?" on a page about trust.
+          brand_name: 'Errand',
+          // A pass is fifteen searches, so there is nothing to ship. Left at
+          // PayPal's default the page asks for a delivery address and then
+          // hands back one nobody will ever use.
+          shipping_preference: 'NO_SHIPPING' as const,
+          locale: 'en-US',
           return_url: returnUrl,
           cancel_url: cancelUrl,
         },
