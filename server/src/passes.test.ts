@@ -8,6 +8,7 @@ import {
   refundDue,
   resetPasses,
   spendRun,
+  releaseRun,
 } from './passes.js';
 
 const captured = (id: string, amount = '3.00') => ({
@@ -74,4 +75,16 @@ test('a refunded pass cannot be spent afterwards', () => {
   markRefunded('F');
   assert.equal(hasRunLeft('F'), false);
   assert.equal(spendRun('F'), false);
+});
+
+test('a run reserved for an errand that never arrives is given back', () => {
+  resetPasses();
+  const pass = grantPass({ id: 'o-release', status: 'COMPLETED', captureId: 'c-release', amount: '3.00', currency: 'USD' });
+  assert.equal(spendRun(pass.orderId), true);
+  assert.equal(getPass(pass.orderId)?.used, 1);
+  releaseRun(pass.orderId);
+  assert.equal(getPass(pass.orderId)?.used, 0);
+  // Never below zero, however often it is called.
+  releaseRun(pass.orderId);
+  assert.equal(getPass(pass.orderId)?.used, 0);
 });

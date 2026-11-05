@@ -82,7 +82,8 @@ export type WebhookEvent = {
     invoice_id?: string;
     custom_id?: string;
     amount?: { value?: string; currency_code?: string };
-    supplementary_data?: { related_ids?: { order_id?: string } };
+    supplementary_data?: { related_ids?: { order_id?: string; capture_id?: string } };
+    links?: { href?: string; rel?: string }[];
     purchase_units?: { payments?: { captures?: { id?: string }[] } }[];
   };
 };
@@ -96,6 +97,22 @@ export function orderIdOf(event: WebhookEvent): string | undefined {
   const type = event.event_type ?? '';
   if (type.startsWith('CHECKOUT.ORDER.')) return event.resource?.id;
   return event.resource?.supplementary_data?.related_ids?.order_id;
+}
+
+/**
+ * Which capture a refund notification is about. `resource.id` on a refund is
+ * the refund's own id, not the capture's — reading it as the capture is how a
+ * refund raised in the PayPal dashboard went past us marked "ignored". PayPal
+ * names the capture under related_ids, and otherwise in the `up` link.
+ */
+export function captureIdOf(event: WebhookEvent): string | undefined {
+  const related = event.resource?.supplementary_data?.related_ids?.capture_id;
+  if (related) return related;
+  const up = event.resource?.links?.find((l) => l.rel === 'up')?.href ?? '';
+  const inUrl = /\/captures\/([^/?#]+)/.exec(up);
+  if (inUrl) return inUrl[1];
+  // A REVERSED notification names the capture directly.
+  return event.event_type === 'PAYMENT.CAPTURE.REVERSED' ? event.resource?.id : undefined;
 }
 
 /** A short, non-sensitive note about what arrived, for the health endpoint. */

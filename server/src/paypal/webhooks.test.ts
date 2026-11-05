@@ -8,6 +8,7 @@ import {
   webhookNotes,
   resetWebhookNotes,
   type WebhookEvent,
+  captureIdOf,
 } from './webhooks.js';
 import { buildOrderPayload, type CartLine } from './orders.js';
 
@@ -96,4 +97,28 @@ test('an order with no marks stays exactly as it was', () => {
   assert.equal('invoice_id' in unit, false);
   assert.equal('custom_id' in unit, false);
   assert.equal('soft_descriptor' in unit, false);
+});
+
+test('a refund names the capture, not the refund', () => {
+  const related = {
+    event_type: 'PAYMENT.CAPTURE.REFUNDED',
+    resource: { id: 'REFUND-1', supplementary_data: { related_ids: { capture_id: 'CAP-9' } } },
+  };
+  assert.equal(captureIdOf(related), 'CAP-9');
+
+  const viaLink = {
+    event_type: 'PAYMENT.CAPTURE.REFUNDED',
+    resource: {
+      id: 'REFUND-2',
+      links: [
+        { rel: 'self', href: 'https://api.paypal.com/v2/payments/refunds/REFUND-2' },
+        { rel: 'up', href: 'https://api.paypal.com/v2/payments/captures/CAP-7' },
+      ],
+    },
+  };
+  assert.equal(captureIdOf(viaLink), 'CAP-7');
+
+  // The refund's own id is never the answer for a REFUNDED event.
+  assert.equal(captureIdOf({ event_type: 'PAYMENT.CAPTURE.REFUNDED', resource: { id: 'REFUND-3' } }), undefined);
+  assert.equal(captureIdOf({ event_type: 'PAYMENT.CAPTURE.REVERSED', resource: { id: 'CAP-5' } }), 'CAP-5');
 });
